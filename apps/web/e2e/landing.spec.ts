@@ -4,7 +4,7 @@ for(const width of [360,768,1440]){
   await page.setViewportSize({width,height:1000});
   await page.route('**/api/v1/me',route=>route.fulfill({status:401,contentType:'application/json',body:JSON.stringify({code:'UNAUTHENTICATED',message:'Войдите'})}));
   await page.goto('/');
-  await expect(page.getByRole('heading',{level:1})).toContainText('Chobra');
+  await expect(page.getByRole('heading',{level:1})).toContainText('Награда есть.');
   await expect(page.getByRole('link',{name:'Попробовать бесплатно',exact:true})).toHaveAttribute('href','/login');
   await expect(page.locator('.landing-nav').getByRole('link',{name:'Инструкция',exact:true})).toHaveAttribute('target','_blank');
   await expect(page.locator('.example-reward')).toHaveText('+10 очков');

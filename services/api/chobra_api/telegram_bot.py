@@ -15,7 +15,7 @@ from sqlalchemy import select, text
 from .access import Ctx, load_roles
 from .config import settings
 from .db import SessionLocal, set_tenant
-from .models import AgentProfile, AuthSession, BotCursor, ExperimentBatch, Membership, Project, RuleVersion, ScenarioVersion, TelegramLogin, User, Workspace
+from .models import Comparison, Run, AgentProfile, AuthSession, BotCursor, ExperimentBatch, Membership, Project, RuleVersion, ScenarioVersion, TelegramLogin, User, Workspace
 from .security import now, token_hash
 from .services import create_batch, create_project, expand_plan
 
@@ -57,15 +57,36 @@ def account(db, person: dict) -> Ctx:
 def site_buttons(path="/"):
     # Telegram rejects localhost URLs. Development still supports scanning the t.me QR.
     if settings.public_url.startswith("https://"):
-        return {"inline_keyboard": [[{"text": "Открыть Chobra", "url": settings.public_url.rstrip('/') + path}], [{"text": "Запустить бесплатный пример", "callback_data": "demo"}]]}
+        return {"inline_keyboard": [[{"text": "Запустить бесплатный пример", "callback_data": "demo"}], [{"text": "Мой отчёт", "callback_data": "/report"}, {"text": "Мои проекты", "callback_data": "/projects"}], [{"text": "Открыть Chobra", "url": settings.public_url.rstrip('/') + path}]]}
     return {"inline_keyboard": [[{"text": "Запустить бесплатный пример", "callback_data": "demo"}]]}
 
 
-def send(chat_id, message, buttons=None):
+def send(chat_id, message, buttons=None, html=False):
     payload = {"chat_id": chat_id, "text": message, "link_preview_options": {"is_disabled": True}}
+    if html:
+        payload["parse_mode"] = "HTML"
     if buttons:
         payload["reply_markup"] = buttons
     telegram_call("sendMessage", payload)
+
+
+def readable_report(ctx, batch):
+    from chobra_reporting.reader import overview, telegram_report
+    ctx.require_project(batch.project_id)
+    project=ctx.db.get(Project,batch.project_id)
+    comparison=ctx.db.scalar(select(Comparison).where(Comparison.batch_id==batch.id).order_by(Comparison.created_at.desc()).limit(1))
+    if not comparison:
+        runs=ctx.db.scalars(select(Run).where(Run.batch_id==batch.id)).all()
+        done=sum(r.status=='completed' for r in runs)
+        return f'<b>Проверка ещё идёт</b>\n\nГотово {done} из {batch.planned_runs} запусков.\nНажмите «Обновить отчёт» через несколько секунд.'
+    summary=overview(comparison.result.get('primary'),batch.immutable_plan['environment'])
+    return telegram_report(summary,project.name)
+
+
+def report_buttons(batch):
+    buttons=site_buttons(f'/experiments/{batch.id}')
+    buttons['inline_keyboard'].insert(0,[{'text':'Обновить отчёт','callback_data':f'report:{batch.id}'}])
+    return buttons
 
 
 def demo(ctx):
@@ -115,9 +136,31 @@ def process(update):
         send(chat_id, "Вход подтверждён. Вернитесь в браузер — он откроет ваш аккаунт автоматически.", site_buttons()); return
     with SessionLocal() as db:
         ctx = account(db, person)
+        if command == '/report' or command.startswith('report:'):
+            import uuid
+            if command.startswith('report:'):
+                try: batch_id=uuid.UUID(command.split(':',1)[1])
+                except ValueError: return
+                batch=db.get(ExperimentBatch,batch_id)
+                if batch is None:
+                    send(chat_id,'Проверка не найдена. Откройте /projects.'); return
+                try: ctx.require_project(batch.project_id)
+                except Exception:
+                    send(chat_id,'Эта проверка недоступна вашему аккаунту.'); return
+            else:
+                candidates=db.scalars(select(ExperimentBatch).where(ExperimentBatch.workspace_id.in_(ctx.workspace_ids)).order_by(ExperimentBatch.created_at.desc()).limit(20)).all()
+                batch=None
+                for item in candidates:
+                    try: ctx.require_project(item.project_id)
+                    except Exception: continue
+                    batch=item;break
+            if batch is None:
+                send(chat_id,'Проверок пока нет. Нажмите «Запустить бесплатный пример».',site_buttons()); return
+            text=readable_report(ctx,batch); db.commit()
+            send(chat_id,text,report_buttons(batch),html=True); return
         if command in ("/demo", "demo"):
             batch = demo(ctx); db.commit()
-            send(chat_id, "Проверка запущена: 2 правила × 3 повтора. Сравниваем оплату закрытий с оплатой решённых проблем.\n\nЭто бесплатные сценарные участники, обращения к ИИ нет. Результат появится на сайте; /status покажет ход выполнения.", site_buttons(f"/experiments/{batch.id}")); return
+            send(chat_id, "Проверка запущена: 2 правила × 3 повтора. Сравниваем оплату закрытий с оплатой решённых проблем.\n\nЭто бесплатные сценарные участники, обращения к ИИ нет. Результат появится на сайте; /status покажет ход выполнения.", report_buttons(batch)); return
         if command in ("/status", "/runs"):
             batches = db.scalars(select(ExperimentBatch).where(ExperimentBatch.workspace_id.in_(ctx.workspace_ids)).order_by(ExperimentBatch.created_at.desc()).limit(5)).all()
             labels = {"completed":"завершена", "running":"выполняется", "queued":"в очереди", "failed":"ошибка", "canceled":"остановлена"}
@@ -128,7 +171,7 @@ def process(update):
                 except Exception: continue
                 visible.append(batch)
             db.commit()
-            send(chat_id, "Последние проверки:\n" + "\n".join(f"• {b.title}: {labels.get(b.status,b.status)}" for b in visible) if visible else "Проверок пока нет. Запустите /demo.", site_buttons(f"/experiments/{visible[0].id}" if visible else "/")); return
+            send(chat_id, "Последние проверки:\n" + "\n".join(f"• {b.title}: {labels.get(b.status,b.status)}" for b in visible) if visible else "Проверок пока нет. Запустите /demo.", report_buttons(visible[0]) if visible else site_buttons()); return
         if command == "/projects":
             rows = db.scalars(select(Project).where(Project.workspace_id.in_(ctx.workspace_ids), Project.archived_at.is_(None)).order_by(Project.created_at.desc()).limit(20)).all()
             names=[]
@@ -138,7 +181,17 @@ def process(update):
                 names.append(p.name)
             db.commit(); send(chat_id, "Ваши проекты:\n" + "\n".join(f"• {n}" for n in names) if names else "Проектов пока нет. /demo создаст первый пример.", site_buttons()); return
         db.commit()
-    send(chat_id, "Chobra проверяет, не поощряет ли награда вредное поведение.\n\n/demo — бесплатный пример\n/status — последние проверки\n/projects — ваши проекты\n/login — открыть сайт и войти по QR\n/help — эта инструкция\n\nДля входа откройте сайт, отсканируйте QR-код и подтвердите совпадающий код здесь. Результаты относятся к симуляции, а не предсказывают поведение людей.", site_buttons())
+    caption=("<b>Chobra · проверьте правила награды</b>\n\n"
+             "Премию получили. А задачу выполнили? Chobra проверит это на виртуальных участниках.\n\n"
+             "<b>Начните с бесплатного примера</b>\n"
+             "Нажмите кнопку ниже → дождитесь проверки → откройте понятный отчёт.\n\n"
+             "<b>Команды</b>\n/demo — запустить пример\n/report — итог последней проверки\n/status — ход выполнения\n/projects — мои проекты\n\n"
+             "Для входа на сайт отсканируйте QR и подтвердите совпадающий код здесь.")
+    try:
+        telegram_call('sendPhoto',{'chat_id':chat_id,'photo':settings.public_url.rstrip('/')+'/brand/chobra-social.png','caption':caption,'parse_mode':'HTML','reply_markup':site_buttons()})
+    except Exception:
+        send(chat_id,caption,site_buttons(),html=True)
+
 
 
 def main():
@@ -151,8 +204,9 @@ def main():
     if not connection.scalar(text("SELECT pg_try_advisory_lock(8917672112)")):
         connection.close()
         raise SystemExit("Telegram poller is already running")
+    connection.commit()
     telegram_call("setMyCommands", {"commands": [{"command": c,"description":d} for c,d in [
-        ("start","Начать"),("demo","Бесплатная проверка"),("status","Последние проверки"),("projects","Мои проекты"),("login","Войти на сайт"),("help","Как пользоваться")]]})
+        ("start","Начать"),("demo","Бесплатная проверка"),("report","Понятный отчёт о результате"),("status","Последние проверки"),("projects","Мои проекты"),("login","Войти на сайт"),("help","Как пользоваться")]]})
     log.info("Telegram bot started")
     while True:
         try:

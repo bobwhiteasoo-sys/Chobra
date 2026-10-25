@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 
 from chobra_audit.comparison import compare_runs
+from chobra_reporting.reader import overview
 from chobra_audit.fixes import check_fix_on_counterexample, propose_fixes
 from chobra_audit.replay_verify import verify_replay
 from chobra_engine.canonical import sha256_hex
@@ -454,7 +455,8 @@ def list_comparisons(project_id: uuid.UUID, ctx: CtxDep) -> dict[str, Any]:
 def get_comparison(comparison_id: uuid.UUID, ctx: CtxDep) -> dict[str, Any]:
     comparison = _get_comparison(ctx, comparison_id)
     runs = ctx.db.execute(select(Run).where(Run.batch_id == comparison.batch_id)).scalars().all()
-    return {**_comparison(comparison), "runs": [_run(r) for r in runs], "plan": ctx.db.get(ExperimentBatch, comparison.batch_id).immutable_plan}
+    plan = ctx.db.get(ExperimentBatch, comparison.batch_id).immutable_plan
+    return {**_comparison(comparison), "runs": [_run(r) for r in runs], "plan": plan, "reader_summaries": [overview(p, plan["environment"]) for p in comparison.result.get("pairs", [])]}
 
 
 class Exclusion(BaseModel):

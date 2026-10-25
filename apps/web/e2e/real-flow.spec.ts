@@ -37,6 +37,8 @@ test("real API: sign in, create series, inspect finding, compare and export", as
   await expect(page.locator(".metric").filter({hasText:"Вызовы модели"})).toContainText("0");
   await page.getByRole("link", { name: "Перейти к сравнению", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Сравнение вариантов", exact: true })).toBeVisible();
+  await expect(page.getByLabel("Краткий итог проверки")).toBeVisible();
+  if(process.env.CHOBRA_SUMMARY_SHOT) await page.screenshot({path:process.env.CHOBRA_SUMMARY_SHOT});
   await page.getByLabel("Формат отчета").selectOption("markdown");
   await page.getByRole("button", { name: "Создать отчет", exact: true }).click();
   await expect(page).toHaveURL(/\/reports\/[^/]+$/);

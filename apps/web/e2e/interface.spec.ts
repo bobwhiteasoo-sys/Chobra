@@ -22,6 +22,7 @@ test("UI contract: login → experiment → arena → finding → comparison →
   await expect(page.getByRole("heading", { name: "Нарушенное свойство", exact: true })).toBeVisible();
   await page.goto("/comparisons/comparison-control");
   await expect(page.getByRole("heading", { name: "Сравнение вариантов", exact: true })).toBeVisible();
+  await page.getByText("Подробная статистика и методика",{exact:true}).click();
   await expect(page.getByText(/Bootstrap 95/).first()).toBeVisible();
   await page.getByLabel("Формат отчета").selectOption("markdown");
   await page.getByRole("button", { name: "Создать отчет", exact: true }).click();
