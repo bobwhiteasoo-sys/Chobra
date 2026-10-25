@@ -134,6 +134,10 @@ class Environment(ABC):
         """Values for the two Arena registers: paid reward and the factual outcome."""
         return {}
 
+    def scene_info(self, config: dict[str, Any]) -> dict[str, Any]:
+        """Static facts the Arena needs to lay out the world (capacity, limits)."""
+        return {}
+
     # --- configuration -------------------------------------------------------------
     @abstractmethod
     def default_config(self) -> dict[str, Any]: ...

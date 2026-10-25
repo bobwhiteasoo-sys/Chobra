@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -25,7 +26,20 @@ async def lifespan(app: FastAPI):
         db.commit()
     finally:
         db.close()
+    stop = None
+    if os.environ.get("CHOBRA_EMBEDDED_WORKER") == "1":
+        # Development convenience: worker threads inside the API process. Production runs `chobra-worker`.
+        import socket
+        import threading
+
+        from chobra_worker.main import loop
+
+        stop = threading.Event()
+        for index in range(int(os.environ.get("CHOBRA_WORKER_THREADS", "4"))):
+            threading.Thread(target=loop, args=(f"{socket.gethostname()}:{os.getpid()}:embedded:{index}", stop), daemon=True).start()
     yield
+    if stop is not None:
+        stop.set()
 
 
 def create_app() -> FastAPI:

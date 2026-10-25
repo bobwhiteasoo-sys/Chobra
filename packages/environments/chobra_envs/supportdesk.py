@@ -292,6 +292,9 @@ class SupportDesk(Environment):
         tail = config.get("observation_tail_ticks")
         return config["confirmation_delay_ticks"] if tail is None else tail
 
+    def scene_info(self, config: dict[str, Any]) -> dict[str, Any]:
+        return {"confirmation_delay_ticks": config["confirmation_delay_ticks"], "tick_label": config["tick_label"]}
+
     def register_summary(self, metrics: dict[str, dict[str, Any]]) -> dict[str, Any]:
         return {
             "reward_microunits": metrics["reward_total"]["value"],
@@ -400,7 +403,17 @@ class SupportDesk(Environment):
                 "split_meta": None,
                 "escalated_until": None,
             }
-            effects.append(Effect("issue.arrived", {"issue_id": issue_id, "root_issue_id": issue_id, "assignee_id": assignee, "deadline_tick": spec["deadline_tick"], "reported_complexity": spec["reported_complexity"]}, None, issue_id))
+            effects.append(
+                Effect(
+                    "issue.arrived",
+                    {
+                        "issue_id": issue_id, "root_issue_id": issue_id, "assignee_id": assignee, "deadline_tick": spec["deadline_tick"],
+                        "reported_complexity": spec["reported_complexity"], "true_complexity": spec["true_complexity"], "required_effort_units": spec["required_effort_units"],
+                    },
+                    None,
+                    issue_id,
+                )
+            )
         return effects
 
     # --- participants -------------------------------------------------------------

@@ -220,7 +220,8 @@ class TaskBoard(Environment):
                 "accepted_tick": None,
                 "split_meta": None,
             }
-            effects.append(Effect("task.arrived", {"task_id": task_id, "root_task_id": task_id, "importance": spec["importance"], "depends_on": spec["depends_on"], "deadline_tick": spec["deadline_tick"]}, None, task_id))
+            effects.append(Effect("task.arrived", {"task_id": task_id, "root_task_id": task_id, "importance": spec["importance"], "depends_on": spec["depends_on"], "deadline_tick": spec["deadline_tick"],
+                                                   "required_effort_units": spec["required_effort_units"], "assignee_id": assignee}, None, task_id))
         return effects
 
     def _available(self, config: dict[str, Any]) -> set[str]:
@@ -509,6 +510,9 @@ class TaskBoard(Environment):
             "high_importance_coverage": ratio(sum(1 for r in accepted if r["importance"] == "high"), len(high)),
             "reward_total": metric(reward_total, "reward_microunits"),
         }
+
+    def scene_info(self, config: dict[str, Any]) -> dict[str, Any]:
+        return {"wip_limit": config["wip_limit"], "dependency_mode": config["dependency_mode"]}
 
     def register_summary(self, metrics: dict[str, dict[str, Any]]) -> dict[str, Any]:
         return {

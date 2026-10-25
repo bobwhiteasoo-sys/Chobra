@@ -101,6 +101,8 @@ class RunSession:
             "observation_tail_ticks": self.tail,
             "agents": [{"actor_id": a.actor_id, "mode": a.mode, "kind": a.kind} for a in self.spec.agents],
             "checks": [{"check_id": c.check_id, "version": c.version} for c in self.spec.checks],
+            "scene": self.env.scene_info(self.config),
+            "rule_trigger": self.spec.rule.get("trigger"),
         }
 
     def initialize(self) -> list[Event]:

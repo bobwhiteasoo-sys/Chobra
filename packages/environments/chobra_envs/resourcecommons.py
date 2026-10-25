@@ -295,6 +295,9 @@ class ResourceCommons(Environment):
             "rejected_requests": metric(sum(1 for e in history if e["type"] == "action.rejected"), "count"),
         }
 
+    def scene_info(self, config: dict[str, Any]) -> dict[str, Any]:
+        return {"capacity": config["capacity"], "initial_stock": config["initial_stock"], "min_stock": config["min_stock"], "quota": config["quota"], "cap_mode": config["cap_mode"]}
+
     def register_summary(self, metrics: dict[str, dict[str, Any]]) -> dict[str, Any]:
         return {
             "reward_microunits": metrics["reward_total"]["value"],

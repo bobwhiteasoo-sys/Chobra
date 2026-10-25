@@ -1,0 +1,45 @@
+/* Generated from packages/design-tokens/tokens.json. Do not edit by hand. */
+:root {
+  --color-bg-canvas: #070511;
+  --color-bg-surface: #13111B;
+  --color-bg-raised: #1B1825;
+  --color-bg-hover: #242030;
+  --color-border-subtle: #2D2939;
+  --color-border-strong: #51495F;
+  --color-text-primary: #F7F5FA;
+  --color-text-secondary: #A6A0B5;
+  --color-text-muted: #8F879F;
+  --color-accent-primary: #FFD447;
+  --color-accent-hover: #FFE078;
+  --color-accent-pressed: #E7BC30;
+  --color-accent-ink: #17120A;
+  --color-focus: #FFF0A6;
+  --color-success: #4BD49A;
+  --color-danger: #FF637D;
+  --color-info: #71C8FF;
+  --color-chart-reward: #FFD447;
+  --color-chart-outcome: #71C8FF;
+  --space-4: 4px;
+  --space-8: 8px;
+  --space-12: 12px;
+  --space-16: 16px;
+  --space-20: 20px;
+  --space-24: 24px;
+  --space-32: 32px;
+  --space-40: 40px;
+  --space-48: 48px;
+  --space-64: 64px;
+  --radius-input: 12px;
+  --radius-card: 16px;
+  --radius-dialog: 20px;
+  --radius-pill: 999px;
+  --font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --motion-press: 140ms;
+  --motion-inspector: 220ms;
+  --motion-marker: 260ms;
+  --motion-highlight: 160ms;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  :root { --motion-press: 0ms; --motion-inspector: 0ms; --motion-marker: 0ms; --motion-highlight: 0ms; }
+}
