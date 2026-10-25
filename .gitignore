@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.hypothesis/
+.localdb/
+.objects/
+node_modules/
+.next/
+apps/web/out/
+*.log
+.env
+.env.local
+test-results/
+playwright-report/

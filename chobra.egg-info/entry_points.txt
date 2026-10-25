@@ -1,0 +1,3 @@
+[console_scripts]
+chobra-api = chobra_api.cli:main
+chobra-worker = chobra_worker.main:main

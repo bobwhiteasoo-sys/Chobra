@@ -1,0 +1,17 @@
+Metadata-Version: 2.4
+Name: chobra
+Version: 1.0.0
+Summary: Chobra: testing incentive rules in executable environments with AI participants
+Requires-Python: >=3.12
+Requires-Dist: fastapi>=0.162
+Requires-Dist: uvicorn[standard]>=0.54
+Requires-Dist: pydantic>=2.9
+Requires-Dist: sqlalchemy>=2.0
+Requires-Dist: alembic>=1.14
+Requires-Dist: psycopg[binary]>=3.2
+Requires-Dist: anthropic>=2.0
+Provides-Extra: dev
+Requires-Dist: pytest>=8; extra == "dev"
+Requires-Dist: hypothesis>=6; extra == "dev"
+Requires-Dist: httpx>=0.28; extra == "dev"
+Requires-Dist: playwright>=1.50; extra == "dev"

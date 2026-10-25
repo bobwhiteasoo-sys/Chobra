@@ -1,0 +1,12 @@
+{
+  "name": "chobra-localdb",
+  "private": true,
+  "type": "module",
+  "description": "Embedded PostgreSQL for local Chobra development without Docker",
+  "scripts": {
+    "start": "node start.mjs"
+  },
+  "dependencies": {
+    "embedded-postgres": "18.4.0-beta.17"
+  }
+}

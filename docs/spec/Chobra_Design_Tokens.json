@@ -1,0 +1,65 @@
+{
+  "name": "Chobra",
+  "version": "1.0",
+  "colors": {
+    "color.bg.canvas": "#070511",
+    "color.bg.surface": "#13111B",
+    "color.bg.raised": "#1B1825",
+    "color.bg.hover": "#242030",
+    "color.border.subtle": "#2D2939",
+    "color.border.strong": "#51495F",
+    "color.text.primary": "#F7F5FA",
+    "color.text.secondary": "#A6A0B5",
+    "color.text.muted": "#8F879F",
+    "color.accent.primary": "#FFD447",
+    "color.accent.hover": "#FFE078",
+    "color.accent.pressed": "#E7BC30",
+    "color.accent.ink": "#17120A",
+    "color.focus": "#FFF0A6",
+    "color.success": "#4BD49A",
+    "color.danger": "#FF637D",
+    "color.info": "#71C8FF",
+    "color.chart.reward": "#FFD447",
+    "color.chart.outcome": "#71C8FF"
+  },
+  "spacing_px": [
+    4,
+    8,
+    12,
+    16,
+    20,
+    24,
+    32,
+    40,
+    48,
+    64
+  ],
+  "radius_px": {
+    "input": 12,
+    "card": 16,
+    "dialog": 20,
+    "pill": 999
+  },
+  "font_family": "Inter",
+  "font_weights": [
+    400,
+    500,
+    600,
+    700
+  ],
+  "motion": {
+    "press_ms": 140,
+    "inspector_ms": 220,
+    "event_marker_ms": 260,
+    "highlight_ms": 160,
+    "ease_out": "cubic-bezier(0.23, 1, 0.32, 1)",
+    "reduced_motion": true
+  },
+  "logo": {
+    "master": "Chobra_Logo_Original.png",
+    "source_dimensions_px": [
+      1663,
+      946
+    ]
+  }
+}
