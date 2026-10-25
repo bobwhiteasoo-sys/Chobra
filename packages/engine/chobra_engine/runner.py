@@ -216,8 +216,12 @@ class RunSession:
             check.set_state(checkpoint["checks"].get(check.check_id, {}))
         for agent in spec.agents:
             agent.set_state(checkpoint["agents"].get(agent.actor_id, {}))
-        upto = [e for e in history if e["tick"] <= checkpoint["tick"]]
-        for data in upto:
+        # All committed events are kept. Operational events (model waits) of an unfinished tick were
+        # committed on their own and stay in the log; domain events beyond the checkpoint cannot exist
+        # because a tick's domain events commit together with its checkpoint.
+        if any(e["event_class"] == "domain" and e["tick"] > checkpoint["tick"] for e in history):
+            raise ValueError("domain events found after the checkpoint tick")
+        for data in sorted(history, key=lambda e: e["seq"]):
             event = Event(**{k: data[k] for k in Event.__dataclass_fields__})
             session.log.events.append(event)
             session.log.last_seq = event.seq

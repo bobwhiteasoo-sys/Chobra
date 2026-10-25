@@ -124,3 +124,19 @@ def test_verdict_rules():
     assert verdict_for([{"status": "pass"}], complete=False) == "inconclusive"
     assert verdict_for([{"status": "fail"}], complete=False) == "observed_violation"
     assert verdict_for([], complete=True) == "inconclusive"
+
+
+def test_restore_keeps_operational_events_of_an_unfinished_tick():
+    first = RunSession(fixture_spec())
+    first.initialize()
+    first.step()
+    checkpoint = first.checkpoint()
+    # A model wait of tick 2 was committed on its own, then the worker crashed before the tick finished.
+    first.tick = 2
+    orphan = first.log.append(tick=2, type="model_call.started", event_class="operational", payload={"model_call_id": "x"}, actor_id="agent_01")
+    history = [e.to_dict() for e in first.log.events]
+    resumed = RunSession.restore(fixture_spec(), checkpoint, history)
+    assert resumed.log.last_seq == orphan.seq
+    events = resumed.step()
+    assert events[0].seq == orphan.seq + 1
+    assert resumed.log.verify_chain()
