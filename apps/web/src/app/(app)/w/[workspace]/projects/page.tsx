@@ -74,7 +74,7 @@ export default function ProjectsPage() {
         filtered ? (
           <EmptyState title="Ничего не найдено">Измените поиск или фильтры.</EmptyState>
         ) : (
-          <EmptyState title="Проектов пока нет" action={<NewProject workspaceId={workspace} />}>
+          <EmptyState title="Проектов пока нет">
             Создайте проект из шаблона: в нем уже будут сценарий, три стартовых правила и профили агентов.
           </EmptyState>
         )
@@ -142,7 +142,7 @@ function NewProject({ workspaceId }: { workspaceId: string | undefined }) {
         <Dialog.Content className="dialog">
           <Dialog.Title className="t-section">Новый проект</Dialog.Title>
           <Dialog.Description className="t-secondary" style={{ margin: "6px 0 20px" }}>
-            Проект создается из шаблона среды: сценарий, стартовые правила и профили агентов появятся сразу.
+            Выберите ситуацию и назовите проект. Участники, задачи и стартовые правила появятся автоматически.
           </Dialog.Description>
           <form onSubmit={submit} className="stack">
             <div className="field">
@@ -151,13 +151,13 @@ function NewProject({ workspaceId }: { workspaceId: string | undefined }) {
             </div>
             <fieldset className="stack" style={{ border: 0, padding: 0, margin: 0 }}>
               <legend className="field label" style={{ marginBottom: 6 }}>
-                Среда
+                Что будем проверять
               </legend>
               {envs.data?.items.map((e) => (
                 <label key={e.name} className="check" style={{ alignItems: "flex-start" }}>
                   <input type="radio" name="env" value={e.name} checked={env === e.name} onChange={() => setEnv(e.name)} />
                   <span>
-                    <strong>{e.template.title}</strong>
+                    <strong>{({supportdesk:"Поддержка клиентов",taskboard:"Работа команды",resourcecommons:"Общий ресурс"} as Record<string,string>)[e.name] ?? e.template.title}</strong>
                     <span className="t-caption" style={{ display: "block" }}>
                       {e.template.problem}
                     </span>

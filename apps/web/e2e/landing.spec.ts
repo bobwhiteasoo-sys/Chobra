@@ -6,7 +6,7 @@ for(const width of [360,768,1440]){
   await page.goto('/');
   await expect(page.getByRole('heading',{level:1})).toContainText('Chobra');
   await expect(page.getByRole('link',{name:'Попробовать бесплатно',exact:true})).toHaveAttribute('href','/login');
-  await expect(page.getByRole('link',{name:'Инструкция',exact:true})).toHaveAttribute('target','_blank');
+  await expect(page.locator('.landing-nav').getByRole('link',{name:'Инструкция',exact:true})).toHaveAttribute('target','_blank');
   await expect(page.locator('.example-reward')).toHaveText('+10 очков');
   await page.getByRole('button',{name:'За решение',exact:true}).click();
   await expect(page.locator('.example-reward')).toHaveText('0 очков');
