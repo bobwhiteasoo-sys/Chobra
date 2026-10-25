@@ -171,6 +171,10 @@ TRIGGERS: dict[str, TriggerSpec] = {
         repeatable_per_root=True,
         confirmed_outcome=True,
         root_field="event.root_issue_id",
+        success_condition={"op": "and", "args": [
+            {"op": "eq", "left": {"field": "event.confirmation_status"}, "right": {"literal": "confirmed", "type": "enum"}},
+            {"op": "eq", "left": {"field": "event.root_problem_solved"}, "right": {"literal": True, "type": "boolean"}},
+        ]},
     ),
     "issue.problem_solved": TriggerSpec(
         "issue.problem_solved",
@@ -223,6 +227,7 @@ TRIGGERS: dict[str, TriggerSpec] = {
         },
         repeatable_per_root=True,
         root_field="event.root_issue_id",
+        reverses=True,
     ),
 }
 

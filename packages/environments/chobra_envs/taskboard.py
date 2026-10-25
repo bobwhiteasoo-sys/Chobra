@@ -118,6 +118,7 @@ TRIGGERS = {
         repeatable_per_root=True,
         confirmed_outcome=True,
         root_field="event.root_task_id",
+        success_condition={"op": "eq", "left": {"field": "event.root_accepted"}, "right": {"literal": True, "type": "boolean"}},
     ),
     "task.work_done": TriggerSpec(
         "task.work_done",

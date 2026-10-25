@@ -97,6 +97,8 @@ class TriggerSpec:
     repeatable_per_root: bool = False
     confirmed_outcome: bool = False
     root_field: str | None = None  # field that names the original root object, used as the unit of account
+    success_condition: dict[str, Any] | None = None  # rule expression meaning "the business outcome really happened"
+    reverses: bool = False  # the event undoes an earlier result (used for clawback suggestions)
 
 
 @dataclass(frozen=True)

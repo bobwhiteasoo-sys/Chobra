@@ -15,11 +15,13 @@ from .contract import Proposal, TickContext
 class RecordedAgent:
     kind = "replay"
 
-    def __init__(self, actor_id: str, proposals_by_tick: dict[int, list[dict[str, Any]]], mode: str = "recorded"):
+    def __init__(self, actor_id: str, proposals_by_tick: dict[int, list[dict[str, Any]]], mode: str = "recorded", *, rebase_versions: bool = False):
         self.actor_id = actor_id
         self.mode = mode
         self.plan = {int(k): list(v) for k, v in proposals_by_tick.items()}
         self.used: dict[int, int] = {}
+        # Minimization removes earlier actions, so object versions shift; the action keeps its meaning.
+        self.rebase_versions = rebase_versions
 
     @classmethod
     def from_plan(cls, actor_id: str, plan: dict[int, tuple[str, dict[str, Any]]]) -> "RecordedAgent":
@@ -31,7 +33,12 @@ class RecordedAgent:
         recorded = self.plan.get(ctx.tick, [])
         if index < len(recorded):
             item = recorded[index]
-            return AgentDecision(Proposal(self.actor_id, item["action_type"], dict(item.get("arguments") or {}), item.get("decision_summary", "")), degraded=bool(item.get("degraded")))
+            arguments = dict(item.get("arguments") or {})
+            if self.rebase_versions and "expected_entity_version" in arguments:
+                current = _current_version(observation, arguments)
+                if current is not None:
+                    arguments["expected_entity_version"] = current
+            return AgentDecision(Proposal(self.actor_id, item["action_type"], arguments, item.get("decision_summary", "")), degraded=bool(item.get("degraded")))
         return AgentDecision(Proposal(self.actor_id, "wait", {}, ""))
 
     def get_state(self) -> dict[str, Any]:
@@ -55,3 +62,12 @@ def recorded_plan(events: list[dict[str, Any]]) -> dict[str, dict[int, list[dict
             }
         )
     return plan
+
+
+def _current_version(observation: dict[str, Any], arguments: dict[str, Any]) -> int | None:
+    for key, collection in (("issue_id", "issues"), ("task_id", "tasks")):
+        if key in arguments:
+            for item in observation.get(collection, []):
+                if item.get(key) == arguments[key]:
+                    return item.get("entity_version")
+    return None
