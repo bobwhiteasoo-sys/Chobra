@@ -129,7 +129,7 @@ ACTION_CATALOG: dict[str, ActionSpec] = {
 
 _ENUM_COMPLEXITY = FieldSpec("enum", enum_values=COMPLEXITIES, description="Сложность")
 _ISSUE_REF = FieldSpec("entity_ref", unit="issue", description="Обращение")
-_ROOT_REF = FieldSpec("entity_ref", unit="issue", description="Исходная проблема")
+_ROOT_REF = FieldSpec("entity_ref", unit="root_issue", description="Исходная проблема")
 _ACTOR_REF = FieldSpec("entity_ref", unit="actor", description="Участник")
 _AGE = FieldSpec("duration_ticks", unit="ticks", description="Возраст исходной проблемы")
 
@@ -151,6 +151,7 @@ TRIGGERS: dict[str, TriggerSpec] = {
         },
         repeatable_per_root=True,
         confirmed_outcome=False,
+        root_field="event.root_issue_id",
     ),
     "issue.confirmation_completed": TriggerSpec(
         "issue.confirmation_completed",
@@ -169,6 +170,7 @@ TRIGGERS: dict[str, TriggerSpec] = {
         },
         repeatable_per_root=True,
         confirmed_outcome=True,
+        root_field="event.root_issue_id",
     ),
     "issue.problem_solved": TriggerSpec(
         "issue.problem_solved",
@@ -185,6 +187,7 @@ TRIGGERS: dict[str, TriggerSpec] = {
         },
         repeatable_per_root=True,
         confirmed_outcome=True,
+        root_field="event.root_issue_id",
     ),
     "issue.work_done": TriggerSpec(
         "issue.work_done",
@@ -196,6 +199,7 @@ TRIGGERS: dict[str, TriggerSpec] = {
             "event.effort_units": FieldSpec("int", unit="effort_units", description="Объем кванта"),
         },
         repeatable_per_root=True,
+        root_field="event.root_issue_id",
     ),
     "issue.split": TriggerSpec(
         "issue.split",
@@ -207,8 +211,21 @@ TRIGGERS: dict[str, TriggerSpec] = {
             "event.parts": FieldSpec("int", unit="count", description="Число частей"),
         },
         repeatable_per_root=True,
+        root_field="event.root_issue_id",
+    ),
+    "issue.reopened": TriggerSpec(
+        "issue.reopened",
+        "Обращение возвращено в работу",
+        {
+            "event.issue_id": _ISSUE_REF,
+            "event.root_issue_id": _ROOT_REF,
+            "event.reason": FieldSpec("enum", enum_values=("customer_rejected", "participant"), description="Причина возврата"),
+        },
+        repeatable_per_root=True,
+        root_field="event.root_issue_id",
     ),
 }
+
 ENTITY_FIELDS = {
     "entity.true_complexity": FieldSpec("enum", enum_values=COMPLEXITIES, description="Истинная сложность обращения"),
     "entity.reported_complexity": FieldSpec("enum", enum_values=COMPLEXITIES, mutable_by_actor=True, description="Заявленная сложность"),

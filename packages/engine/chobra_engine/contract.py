@@ -95,6 +95,7 @@ class TriggerSpec:
     fields: dict[str, FieldSpec]
     repeatable_per_root: bool = False
     confirmed_outcome: bool = False
+    root_field: str | None = None  # field that names the original root object, used as the unit of account
 
 
 @dataclass(frozen=True)
