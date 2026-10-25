@@ -30,11 +30,11 @@ export default function ProjectsPage() {
       <header className="page-head">
         <div>
           <h1 className="t-page">Проекты</h1>
-          <p className="lead">Один проект отвечает на один вопрос: например, как изменить систему премий поддержки.</p>
+          <p className="lead">Выберите проект или создайте новый, чтобы проверить правила награды.</p>
         </div>
         <NewProject workspaceId={workspace} />
       </header>
-      <div className="row" style={{ marginBottom: 20 }}>
+      <details className="advanced project-filters"><summary>Поиск и фильтры</summary><div className="row">
         <div className="input-unit" style={{ minWidth: 260, flex: "1 1 260px", maxWidth: 420, position: "relative" }}>
           <label htmlFor="q" className="sr-only">
             Поиск по названию и тегам
@@ -65,6 +65,7 @@ export default function ProjectsPage() {
           </button>
         </div>
       </div>
+      </details>
       {projects.isLoading ? (
         <Loading lines={5} />
       ) : projects.error ? (
@@ -78,25 +79,7 @@ export default function ProjectsPage() {
           </EmptyState>
         )
       ) : (
-        <div className="panel" style={{ padding: 0 }}>
-          <div className="table-wrap">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Проект</th>
-                  <th>Среда</th>
-                  <th>Последняя серия</th>
-                  <th>Изменен</th>
-                </tr>
-              </thead>
-              <tbody>
-                {projects.data.items.map((p) => (
-                  <ProjectRow key={p.id} project={p} />
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <div className="project-list">{projects.data.items.map(p=><Link className="project-list-item" href={`/p/${p.id}`} key={p.id}><div><strong>{p.name}</strong><p>{({supportdesk:"Поддержка клиентов",taskboard:"Работа команды",resourcecommons:"Общий ресурс"} as Record<string,string>)[p.environment_id]??p.environment_id}</p></div><div className="row">{p.last_batch?<RunStatus status={p.last_batch.status}/>:<span className="t-caption">Готов к первой проверке</span>}<span className="project-open">Открыть</span></div></Link>)}</div>
       )}
     </>
   );

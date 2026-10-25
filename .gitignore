@@ -19,3 +19,8 @@ playwright-report/
 *.tsbuildinfo
 .DS_Store
 preview-access.txt
+
+.taste-skill/
+.impeccable/
+
+*.egg-info/

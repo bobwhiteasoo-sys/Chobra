@@ -14,7 +14,7 @@ test("UI contract: login → experiment → arena → finding → comparison →
   await page.goto("/runs/SD-P1-101/live");
   await expect(page.getByRole("region", { name: "Арена подтвержденных событий" })).toBeVisible();
   await expect(page.getByText("Начисленная награда", { exact: true })).toBeVisible();
-  await page.getByRole("link", { name: "Открыть Replay" }).click();
+  await page.getByRole("link", { name: "Посмотреть историю" }).click();
   await expect(page.getByText(/Просмотр истории/)).toBeVisible();
   await page.getByRole("button", { name: "Следующее нарушение", exact: true }).click();
   await expect(page.getByRole("complementary", { name: "Инспектор" })).toContainText("Нарушение");

@@ -1,64 +1,16 @@
 "use client";
-
-import { Play } from "lucide-react";
+import * as Dropdown from "@radix-ui/react-dropdown-menu";
+import { ChevronDown } from "lucide-react";
 import Link from "next/link";
-import { useParams, usePathname } from "next/navigation";
+import { useParams, usePathname, useRouter } from "next/navigation";
 import type { ReactNode } from "react";
-
 import { useAnnounceWorkspace } from "@/components/Shell";
-import { ButtonLink, ErrorState, Loading, Pill } from "@/components/ui";
-import { ENV_LABELS } from "@/lib/format";
+import { ButtonLink, ErrorState, Loading } from "@/components/ui";
 import { useProject } from "@/lib/queries";
-
-export default function ProjectLayout({ children }: { children: ReactNode }) {
-  const { project: id } = useParams<{ project: string }>();
-  const pathname = usePathname();
-  const project = useProject(id);
-  useAnnounceWorkspace(project.data?.workspace_id);
-  if (project.isLoading) return <Loading lines={6} />;
-  if (project.error || !project.data) return <ErrorState error={project.error} onRetry={() => project.refetch()} />;
-  const p = project.data;
-  const base = `/p/${p.id}`;
-  const tabs = [
-    { href: base, label: "Обзор" },
-    { href: `${base}/scenario`, label: "Сценарий" },
-    { href: `${base}/rules`, label: "Правила" },
-    { href: `${base}/agents`, label: "Агенты" },
-    { href: `${base}/experiments`, label: "Испытания" },
-    { href: `${base}/comparisons`, label: "Сравнения" },
-  ];
-  const current = (href: string) => (href === base ? pathname === base : pathname.startsWith(href));
-  const canRun = p.role === "owner" || p.role === "admin" || p.role === "analyst";
-  return (
-    <>
-      <nav className="crumbs" aria-label="Путь">
-        <Link href={`/w/${p.workspace_id}/projects`}>Проекты</Link>
-        <span aria-hidden>/</span>
-        <span>{p.name}</span>
-      </nav>
-      <header className="page-head" style={{ marginBottom: 16 }}>
-        <div style={{ minWidth: 0 }}>
-          <h1 className="t-page clamp-2">{p.name}</h1>
-          <div className="row" style={{ gap: 8, marginTop: 8 }}>
-            <Pill>{ENV_LABELS[p.environment_id] ?? p.environment_id}</Pill>
-            {p.is_demo ? <Pill tone="info">Учебный проект с демонстрационными данными</Pill> : null}
-            {p.archived_at ? <Pill>В архиве</Pill> : null}
-          </div>
-        </div>
-        {canRun ? (
-          <ButtonLink href={`${base}/experiments/new`} variant="primary">
-            <Play size={16} aria-hidden /> Новое испытание
-          </ButtonLink>
-        ) : null}
-      </header>
-      <nav className="tabs-list" aria-label="Разделы проекта">
-        {tabs.map((tab) => (
-          <Link key={tab.href} href={tab.href} aria-current={current(tab.href) ? "page" : undefined}>
-            {tab.label}
-          </Link>
-        ))}
-      </nav>
-      {children}
-    </>
-  );
+export default function ProjectLayout({children}:{children:ReactNode}){
+ const {project:id}=useParams<{project:string}>();const pathname=usePathname();const router=useRouter();const project=useProject(id);useAnnounceWorkspace(project.data?.workspace_id);
+ if(project.isLoading)return <Loading/>;if(project.error||!project.data)return <ErrorState error={project.error} onRetry={()=>void project.refetch()}/>;
+ const p=project.data;const base=`/p/${id}`;const canRun=p.role!=="viewer"&&!p.archived_at;const newCheck=pathname.endsWith("/experiments/new");
+ return <><Link className="back-link" href={`/w/${p.workspace_id}/projects`}>Все проекты</Link><header className="page-head project-title"><div><h1 className="t-page">{p.name}</h1>{p.archived_at?<p className="t-caption">Проект в архиве</p>:null}</div>{canRun&&!newCheck?<ButtonLink href={`${base}/experiments/new`} variant="primary">Проверить правила</ButtonLink>:null}</header>
+ <nav className="project-nav" aria-label="Разделы проекта"><Link href={base} aria-current={pathname===base?"page":undefined}>Обзор</Link><Link href={`${base}/experiments`} aria-current={pathname.includes("/experiments")&&!newCheck?"page":undefined}>Результаты</Link><Dropdown.Root><Dropdown.Trigger className="text-button project-settings">Настроить проект <ChevronDown size={14}/></Dropdown.Trigger><Dropdown.Portal><Dropdown.Content className="menu" align="start" sideOffset={8}>{[{path:"rules",label:"Правила награды"},{path:"scenario",label:"Задачи и условия"},{path:"agents",label:"Виртуальные участники"},{path:"comparisons",label:"Все сравнения"}].map(item=><Dropdown.Item className="menu-item" key={item.path} onSelect={()=>router.push(`${base}/${item.path}`)}>{item.label}</Dropdown.Item>)}</Dropdown.Content></Dropdown.Portal></Dropdown.Root></nav>{children}</>;
 }

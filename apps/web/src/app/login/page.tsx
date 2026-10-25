@@ -39,8 +39,8 @@ function LoginForm() {
   const devLogin=async(e:FormEvent)=>{e.preventDefault();setBusy(true);setError(null);try{finish(await api<Me>("/auth/dev-login",{body:{display_name:name,email}}));}catch(err){setError(errorMessage(err));setBusy(false);}};
   return <main className="entry"><section className="entry-content">
     <Link href="/" className="brand"><Image src="/brand/chobra-mark-transparent.png" alt="" width={40} height={38}/><span>Chobra</span></Link>
-    <h1>Проверьте, к чему<br/>приведёт награда.</h1>
-    <p className="lead">Виртуальные участники пробуют ваши правила. Вы видите, где премия расходится с реальной пользой.</p>
+    <h1>Войти в Chobra.</h1>
+    <p className="lead">Наведите камеру телефона на QR-код. Пароль не нужен.</p>
     {config.isLoading?<p role="status">Подключаемся к серверу…</p>:null}
     {config.error?<Notice tone="danger">Сервер недоступен. <button className="text-button" onClick={()=>void config.refetch()}>Повторить</button></Notice>:null}
     {config.data?.telegram_enabled?<div className="telegram-entry">
@@ -51,7 +51,7 @@ function LoginForm() {
     {config.data?.mode==="dev"?<details className="advanced"><summary>Локальный вход для разработки</summary><form className="stack" onSubmit={devLogin}><label className="field">Имя<input className="input" required value={name} onChange={e=>setName(e.target.value)}/></label><label className="field">Почта<input className="input" required type="email" value={email} onChange={e=>setEmail(e.target.value)}/></label><Button type="submit" busy={busy}>Войти в тестовый аккаунт</Button></form></details>:null}
     {config.data?.oidc_configured?<a className="btn" href="/api/v1/auth/oidc/start">Войти через организацию</a>:null}
     {config.data&&!config.data.telegram_enabled&&!config.data.oidc_configured&&config.data.mode!=="dev"?<Notice tone="danger">Вход ещё не настроен администратором.</Notice>:null}
-    <Link className="help-link" href="/help">Как работает Chobra и с чего начать</Link>
+    <Link className="help-link" href="/help" target="_blank" rel="noopener noreferrer">Как работает Chobra и с чего начать</Link>
   </section></main>;
 }
 export default function LoginPage(){return <Suspense><LoginForm/></Suspense>;}

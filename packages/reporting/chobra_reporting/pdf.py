@@ -34,7 +34,8 @@ def html_to_pdf(document: str) -> bytes:
         target = Path(tmp) / "report.pdf"
         source.write_text(document, encoding="utf-8")
         subprocess.run(
-            [browser(), "--headless=new", "--disable-gpu", "--no-sandbox", "--no-pdf-header-footer", f"--user-data-dir={tmp}/profile", f"--print-to-pdf={target}", source.as_uri()],
+            [browser(), "--headless=new", "--disable-gpu", "--no-sandbox", "--disable-dev-shm-usage", "--no-pdf-header-footer", f"--user-data-dir={tmp}/profile", f"--print-to-pdf={target}", source.as_uri()],
             check=True, capture_output=True, timeout=90,
+            env={**os.environ, "HOME": tmp, "XDG_CONFIG_HOME": f"{tmp}/config", "XDG_CACHE_HOME": f"{tmp}/cache"},
         )
         return target.read_bytes()

@@ -1,25 +1,17 @@
 "use client";
-
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
-
-import { Loading } from "@/components/ui";
-import { ApiError } from "@/lib/api";
+import Image from "next/image";
+import Link from "next/link";
+import { useState } from "react";
+import { ArrowRight, ExternalLink } from "lucide-react";
 import { useMe } from "@/lib/queries";
-
-export default function Home() {
-  const me = useMe();
-  const router = useRouter();
-  useEffect(() => {
-    if (me.error instanceof ApiError && me.error.status === 401) router.replace("/login");
-    if (me.data) {
-      const target = me.data.last_workspace_id ?? me.data.workspaces[0]?.id;
-      router.replace(target ? `/w/${target}/projects` : "/onboarding");
-    }
-  }, [me.data, me.error, router]);
-  return (
-    <main className="main" style={{ maxWidth: 640 }}>
-      <Loading />
-    </main>
-  );
+import "@/styles/landing.css";
+export default function Home(){
+ const me=useMe();const [confirmed,setConfirmed]=useState(false);
+ const destination=me.data?.workspaces.length?`/w/${me.data.last_workspace_id??me.data.workspaces[0]!.id}/projects`:me.data?"/onboarding":"/login";
+ return <div className="landing"><header className="landing-nav"><Link className="brand" href="/"><Image src="/brand/chobra-mark-transparent.png" alt="" width={30} height={29}/><span>Chobra</span></Link><nav aria-label="Навигация"><Link href="/help" target="_blank" rel="noopener noreferrer">Как пользоваться<ExternalLink size={14}/></Link><Link href={destination}>{me.data?"Мои проекты":"Войти"}<ArrowRight size={16}/></Link></nav></header><main>
+ <section className="landing-hero"><div className="landing-hero-copy"><h1>Chobra проверяет<br/>правила награды.</h1><p>Премия может расти, а польза — исчезать. Узнайте, что станет выгодно делать по вашим правилам.</p><Link href={destination} className="landing-cta">{me.data?"Открыть мои проекты":"Попробовать бесплатно"}<ArrowRight size={18}/></Link><span className="landing-note">Первый пример — без ключа ИИ и оплаты.</span></div><div className="landing-symbol"><Image src="/brand/chobra-mark-transparent.png" alt="Жёлтая кобра — символ Chobra" width={440} height={420} priority/></div></section>
+ <section className="landing-proof" aria-labelledby="proof-title"><div><h2 id="proof-title">Закрыл обращение.<br/>Но не решил проблему.</h2><p>Если платить за закрытия, можно заработать без помощи клиенту. Chobra находит такие расхождения в симуляции.</p><p>Поменяйте правило справа — и посмотрите, заслуживает ли то же действие награды.</p></div><div className="policy-example" data-ui="true"><h3>Пример правила поддержки</h3><div className="policy-toggle" role="group" aria-label="Правило награды"><button aria-pressed={!confirmed} onClick={()=>setConfirmed(false)}>За закрытие</button><button aria-pressed={confirmed} onClick={()=>setConfirmed(true)}>За решение</button></div><p className="example-action">Участник закрыл нерешённое обращение.</p><dl><div><dt>Награда</dt><dd className="example-reward">{confirmed?"0":"+10"} очков</dd></div><div><dt>Польза для клиента</dt><dd>Проблема не решена</dd></div></dl><p className="example-verdict">{confirmed?"Без решения награда не начисляется. Теперь стоит проверить, какие новые стратегии появятся у участников.":"Правило оплатило действие, которое не принесло пользы. Это возможная лазейка."}</p><small>Условный пример для объяснения. Модель ИИ здесь не вызывается.</small></div></section>
+ <section className="landing-how" aria-labelledby="how-title"><h2 id="how-title">От правила<br/>к последствиям.</h2><ol><li><h3>Выберите ситуацию</h3><p>Поддержка клиентов, задачи команды или общий ресурс. Начальные условия уже подготовлены.</p></li><li><h3>Запустите участников</h3><p>Они выбирают действия и пытаются получить награду. Движок отдельно считает реальную пользу.</p></li><li><h3>Исправьте правило</h3><p>Посмотрите нарушения, сравните варианты и повторите проверку. История действий сохранится.</p></li></ol></section>
+ <section className="landing-close"><h2>Сначала проверьте.<br/>Потом внедряйте.</h2><div><Link href={destination} className="landing-cta">Начать проверку<ArrowRight size={18}/></Link><p>Результат относится к заданной симуляции.<br/>Он не предсказывает поведение конкретных людей.</p></div></section></main>
+ <footer className="landing-footer"><div><span>Лаборатория правил награды</span><Link href="https://t.me/chobraAI" target="_blank" rel="noopener noreferrer">Telegram-бот<ExternalLink size={14}/></Link><Link href="/help" target="_blank" rel="noopener noreferrer">Инструкция<ExternalLink size={14}/></Link></div><p>Chobra</p></footer></div>;
 }

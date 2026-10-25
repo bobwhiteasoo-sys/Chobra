@@ -13,6 +13,12 @@ test("real API: sign in, create series, inspect finding, compare and export", as
   await page.getByLabel("Название пространства", { exact: true }).fill(`Приемка ${suffix}`);
   await page.getByRole("button", { name: "Создать пример", exact: true }).click();
   await expect(page).toHaveURL(/\/experiments\/new/);
+  const helpPopup = page.waitForEvent("popup");
+  await page.locator(".topnav").getByRole("link", { name: "Инструкция", exact: true }).click();
+  const help = await helpPopup;
+  await expect(help).toHaveURL(/\/help$/);
+  await expect(page).toHaveURL(/\/experiments\/new/);
+  await help.close();
   await page.getByRole("button", { name: "Проверить правила", exact: true }).click();
   await expect(page).toHaveURL(/\/experiments\/[0-9a-f-]{36}$/);
   const batchId = new URL(page.url()).pathname.split("/").at(-1)!;

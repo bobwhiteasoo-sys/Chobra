@@ -112,7 +112,7 @@ export function Shell({ children }: { children: ReactNode }) {
           </Link>
           <nav className="topnav" aria-label="Основная навигация">
             {[links[0]!, links[2]!, links[3]!].map(link=><Link key={link.href} href={link.href} aria-current={active(link)?"page":undefined}>{link.label}</Link>)}
-            <Link href="/help">Как пользоваться</Link>
+            <Link href="/help" target="_blank" rel="noopener noreferrer">Инструкция</Link>
           </nav>
           <Dropdown.Root><Dropdown.Trigger asChild><button className="account-button" aria-label="Аккаунт и настройки">{me.data.display_name}<ChevronsUpDown size={14}/></button></Dropdown.Trigger>
             <Dropdown.Portal><Dropdown.Content className="menu" align="end" sideOffset={10}>
@@ -126,7 +126,7 @@ export function Shell({ children }: { children: ReactNode }) {
           </Dropdown.Root>
         </header>
         <main className="simple-main" id="main">{children}</main>
-        <footer className="app-footer">Chobra · Проверка правил в симуляции <Link href="/help">Помощь</Link></footer>
+        <footer className="app-footer">Chobra · Проверка правил в симуляции <Link href="/help" target="_blank" rel="noopener noreferrer">Инструкция</Link></footer>
       </div>
     </WorkspaceContext.Provider>
   );
