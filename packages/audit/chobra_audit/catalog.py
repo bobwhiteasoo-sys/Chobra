@@ -4,15 +4,21 @@ from __future__ import annotations
 from typing import Any
 
 from .checks.base import Check
+from .checks.resourcecommons import RESOURCECOMMONS_CHECKS
 from .checks.supportdesk import SUPPORTDESK_CHECKS
+from .checks.taskboard import TASKBOARD_CHECKS
 
 CHECKS: dict[str, list[type[Check]]] = {
     "supportdesk": SUPPORTDESK_CHECKS,
+    "taskboard": TASKBOARD_CHECKS,
+    "resourcecommons": RESOURCECOMMONS_CHECKS,
 }
 
 
 def available_checks(environment: str) -> list[dict[str, Any]]:
-    config_stub: dict[str, Any] = {"starvation_threshold_ticks": 8, "horizon_ticks": 30}
+    from chobra_envs.registry import get_environment
+
+    config_stub = get_environment(environment).default_config()
     out = []
     for cls in CHECKS.get(environment, []):
         check = cls(config_stub)

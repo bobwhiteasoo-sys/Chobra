@@ -292,10 +292,13 @@ class _Checker:
             if acc.kind == "duration_ticks" and ty.kind == "duration_ticks":
                 self.error("RULE_TYPE_MISMATCH", "Нельзя перемножить две длительности", f"{path}.args[{index}]")
                 return None
+            quantities = ("resource_units", "effort_units", "ticks")
             if a_unit in ("none", "count"):
                 unit = b_unit if b_unit not in ("none",) else a_unit
             elif b_unit in ("none", "count"):
                 unit = a_unit
+            elif {a_unit, b_unit} <= {"reward_microunits", *quantities} and "reward_microunits" in (a_unit, b_unit) and a_unit != b_unit:
+                unit = "reward_microunits"  # a per-unit rate times a quantity
             else:
                 self.error("RULE_TYPE_MISMATCH", f"Нельзя перемножить {label(ty)} и {label(acc)}", f"{path}.args[{index}]", expected_unit=a_unit, actual_unit=b_unit)
                 return None
