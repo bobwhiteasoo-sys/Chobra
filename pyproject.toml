@@ -36,7 +36,7 @@ chobra_worker = "services/worker/chobra_worker"
 [tool.setuptools]
 packages = [
   "chobra_engine", "chobra_engine.rules",
-  "chobra_envs", "chobra_agents", "chobra_audit", "chobra_reporting",
+  "chobra_envs", "chobra_agents", "chobra_audit", "chobra_audit.checks", "chobra_reporting",
   "chobra_api", "chobra_api.routers", "chobra_worker",
 ]
 

@@ -239,6 +239,7 @@ COMPLEXITY_RANK = {"easy": 0, "hard": 1}
 class SupportDesk(Environment):
     name = "supportdesk"
     version = "1.0.0"
+    entity_arg = "issue_id"
 
     # --- configuration -------------------------------------------------------------
     def default_config(self) -> dict[str, Any]:
@@ -285,6 +286,16 @@ class SupportDesk(Environment):
     def tail_ticks(self, config: dict[str, Any]) -> int:
         tail = config.get("observation_tail_ticks")
         return config["confirmation_delay_ticks"] if tail is None else tail
+
+    def register_summary(self, metrics: dict[str, dict[str, Any]]) -> dict[str, Any]:
+        return {
+            "reward_microunits": metrics["reward_total"]["value"],
+            "outcome_value": metrics["resolved_rate"]["numerator"],
+            "outcome_label": "решенных проблем",
+            "outcome_denominator": metrics["resolved_rate"]["denominator"],
+            "formal_value": metrics["formal_closure_count"]["value"],
+            "formal_label": "закрытий",
+        }
 
     # --- world --------------------------------------------------------------------
     def build_initial_state(self, config: dict[str, Any], seed: int, actor_ids: list[str]) -> dict[str, Any]:

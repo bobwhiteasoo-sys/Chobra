@@ -42,6 +42,7 @@ class Proposal:
     action_type: str
     arguments: dict[str, Any] = field(default_factory=dict)
     decision_summary: str = ""
+    proposal_id: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -122,6 +123,14 @@ class Environment(ABC):
     name: str
     version: str
     simultaneous: bool = False
+    entity_arg: str | None = None  # argument that names the object an action touches
+
+    def tail_ticks(self, config: dict[str, Any]) -> int:
+        return config.get("observation_tail_ticks") or 0
+
+    def register_summary(self, metrics: dict[str, dict[str, Any]]) -> dict[str, Any]:
+        """Values for the two Arena registers: paid reward and the factual outcome."""
+        return {}
 
     # --- configuration -------------------------------------------------------------
     @abstractmethod
