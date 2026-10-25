@@ -1,0 +1,40 @@
+import { expect, test } from "@playwright/test";
+
+test("real API: sign in, create series, inspect finding, compare and export", async ({ page }) => {
+  test.skip(process.env.CHOBRA_E2E_REAL !== "1", "Requires a migrated PostgreSQL database, API and worker; no mocked API responses");
+  test.setTimeout(180_000);
+  const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  await page.goto("/login");
+  await page.getByText("Локальный вход для разработки",{exact:true}).click();
+  await page.getByLabel("Имя", { exact: true }).fill("Проверка Chobra");
+  await page.getByLabel("Почта", { exact: true }).fill(`e2e-${suffix}@example.test`);
+  await page.getByRole("button", { name: "Войти в тестовый аккаунт", exact: true }).click();
+  await expect(page).toHaveURL(/\/onboarding$/);
+  await page.getByLabel("Название пространства", { exact: true }).fill(`Приемка ${suffix}`);
+  await page.getByRole("button", { name: "Создать пример", exact: true }).click();
+  await expect(page).toHaveURL(/\/experiments\/new/);
+  await page.getByRole("button", { name: "Проверить правила", exact: true }).click();
+  await expect(page).toHaveURL(/\/experiments\/[0-9a-f-]{36}$/);
+  const batchId = new URL(page.url()).pathname.split("/").at(-1)!;
+  let batch: any;
+  await expect.poll(async () => {
+    batch = await (await page.request.get(`/api/v1/batches/${batchId}`)).json();
+    return Boolean(batch.comparison_id);
+  }, { timeout: 120_000, intervals: [500, 1000, 1500] }).toBe(true);
+  const run = batch.runs.find((r: any) => r.verdict === "observed_violation");
+  expect(run).toBeTruthy();
+  await page.goto(`/runs/${run.id}/live`);
+  await page.getByRole("button", { name: "Разобрать доказательства", exact: true }).click();
+  await page.getByRole("link", { name: "Открыть карточку нарушения", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Нарушенное свойство", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Проверить replay", exact: true }).click();
+  await expect(page.locator(".metric").filter({hasText:"Вызовы модели"})).toContainText("0");
+  await page.getByRole("link", { name: "Перейти к сравнению", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Сравнение вариантов", exact: true })).toBeVisible();
+  await page.getByLabel("Формат отчета").selectOption("markdown");
+  await page.getByRole("button", { name: "Создать отчет", exact: true }).click();
+  await expect(page).toHaveURL(/\/reports\/[^/]+$/);
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Скачать отчет", exact: true }).click();
+  expect((await download).suggestedFilename()).toMatch(/\.md$/);
+});

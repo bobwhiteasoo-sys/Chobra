@@ -472,3 +472,22 @@ RLS_TABLES = [
     "metric_samples", "findings", "comparisons", "reports", "budget_reservations", "outbox", "audit_log", "comments",
     "imports", "idempotency_keys",
 ]
+
+
+class TelegramLogin(Base):
+    """Short-lived challenge: Telegram approves; only the originating browser consumes."""
+    __tablename__ = "telegram_logins"
+    id: Mapped[uuid.UUID] = _id()
+    start_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    browser_hash: Mapped[str] = mapped_column(String(64), index=True)
+    display_code: Mapped[str] = mapped_column(String(8))
+    user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    status: Mapped[str] = mapped_column(String(20), default="pending")
+    created_at: Mapped[datetime] = _created()
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class BotCursor(Base):
+    __tablename__ = "bot_cursors"
+    name: Mapped[str] = mapped_column(String(40), primary_key=True)
+    update_id: Mapped[int] = mapped_column(BigInteger, default=0)

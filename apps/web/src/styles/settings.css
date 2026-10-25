@@ -1,0 +1,17 @@
+.settings-layout { width: 100%; max-width: 1120px; margin: 0 auto; min-width: 0; }
+.settings-tabs { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; border-bottom: 1px solid var(--color-border-subtle); margin-bottom: var(--space-24); }
+.settings-tabs a { flex: none; padding: 10px 12px; border-bottom: 2px solid transparent; margin-bottom: -1px; color: var(--color-text-secondary); font-weight: 500; white-space: nowrap; }
+.settings-tabs a:hover { color: var(--color-text-primary); }
+.settings-tabs a[aria-current="page"] { color: var(--color-text-primary); border-bottom-color: var(--color-accent-primary); }
+.settings-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: var(--space-16); }
+.settings-actions { display: flex; gap: var(--space-12); align-items: center; flex-wrap: wrap; }
+.settings-member { display: grid; grid-template-columns: minmax(0, 1fr) minmax(130px, 190px) auto; gap: var(--space-12); align-items: center; padding: 14px 0; border-bottom: 1px solid var(--color-border-subtle); }
+.settings-member:last-child { border-bottom: 0; }
+.settings-member-identity { min-width: 0; overflow-wrap: anywhere; }
+.settings-member-actions { display: flex; gap: 8px; justify-content: flex-end; }
+.settings-inline-note { overflow-wrap: anywhere; }
+@media (max-width: 640px) {
+  .settings-member { grid-template-columns: minmax(0, 1fr) auto; align-items: start; }
+  .settings-member select { grid-column: 1; grid-row: 2; }
+  .settings-member-actions { grid-column: 2; grid-row: 1 / span 2; }
+}

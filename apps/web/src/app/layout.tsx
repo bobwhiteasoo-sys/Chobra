@@ -6,6 +6,7 @@ import { Providers } from "@/components/Providers";
 import "@/styles/globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.CHOBRA_PUBLIC_URL ?? "http://localhost:3100"),
   title: { default: "Chobra", template: "%s · Chobra" },
   description: "Испытание правил мотивации в исполняемых средах с ИИ участниками",
   applicationName: "Chobra",

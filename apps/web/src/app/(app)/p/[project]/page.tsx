@@ -32,7 +32,7 @@ export default function ProjectOverview() {
   };
 
   return (
-    <div className="split">
+    <div className="stack-24 project-overview">
       <div className="stack-24">
         <section className="panel">
           <h2 className="t-panel">Вопрос исследования</h2>
@@ -73,7 +73,7 @@ export default function ProjectOverview() {
           </div>
           {verified.length ? (
             <div>
-              {verified.map((f) => (
+              {verified.slice(0, 5).map((f) => (
                 <Link key={f.id} href={`/findings/${f.id}`} className="list-row">
                   <div style={{ minWidth: 0 }}>
                     <div className="row" style={{ gap: 8 }}>

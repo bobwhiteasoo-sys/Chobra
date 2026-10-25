@@ -55,7 +55,7 @@ def _me(db, user: User, session: AuthSession) -> dict[str, Any]:
 
 @router.get("/auth/config")
 def auth_config() -> dict[str, Any]:
-    return {"mode": settings.auth_mode, "oidc_configured": bool(settings.oidc_issuer and settings.oidc_client_id)}
+    return {"mode": settings.auth_mode, "oidc_configured": bool(settings.oidc_issuer and settings.oidc_client_id), "telegram_enabled": bool(settings.telegram_bot_token), "telegram_username": settings.telegram_bot_username}
 
 
 class DevLogin(BaseModel):
@@ -95,6 +95,22 @@ def me(ctx: CtxDep) -> dict[str, Any]:
     data = _me(ctx.db, ctx.user, ctx.session)
     ctx.db.commit()
     return data
+
+
+class ProfilePatch(BaseModel):
+    display_name: str = Field(min_length=1, max_length=120)
+    locale: str = Field(default="ru", pattern="^(ru|en)$")
+
+
+@router.patch("/me")
+def patch_me(payload: ProfilePatch, ctx: CtxDep) -> dict[str, Any]:
+    name = payload.display_name.strip()
+    if not name:
+        raise ApiError(422, "EMPTY_NAME", "Укажите имя")
+    ctx.user.display_name = name
+    ctx.user.locale = payload.locale
+    ctx.db.commit()
+    return _me(ctx.db, ctx.user, ctx.session)
 
 
 class LastWorkspace(BaseModel):
@@ -155,6 +171,7 @@ class WorkspacePatch(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=120)
     limits: dict[str, int] | None = None
     retention_policy: dict[str, int] | None = None
+    model_settings: dict[str, Any] | None = None
 
 
 @router.patch("/workspaces/{workspace_id}")
@@ -169,6 +186,8 @@ def patch_workspace(workspace_id: uuid.UUID, payload: WorkspacePatch, ctx: CtxDe
             ceiling = DEFAULT_LIMITS.get(key)
             if ceiling is None:
                 raise ApiError(422, "UNKNOWN_LIMIT", f"Неизвестный предел {key}")
+            if value < 1:
+                raise ApiError(422, "LIMIT_TOO_LOW", f"{key}: минимум 1")
             if value > ceiling:
                 raise ApiError(422, "LIMIT_TOO_HIGH", f"{key} не больше {ceiling}; увеличение требует нагрузочной проверки")
             if role != "owner" and value > workspace.limits.get(key, ceiling):
@@ -184,6 +203,16 @@ def patch_workspace(workspace_id: uuid.UUID, payload: WorkspacePatch, ctx: CtxDe
                 raise ApiError(422, "BAD_RETENTION", f"{key}: от 1 до {DEFAULT_RETENTION.get(key)} дней")
             merged[key] = value
         workspace.retention_policy = merged
+    if payload.model_settings is not None:
+        ctx.require_workspace(workspace_id, "own")
+        data = payload.model_settings
+        allowed = data.get("allowed_models", workspace.model_settings.get("allowed_models", sorted(PRICES)))
+        default = data.get("default_model", workspace.model_settings.get("default_model"))
+        if (set(data) - {"default_model", "allowed_models"} or not isinstance(allowed, list)
+                or not allowed or any(not isinstance(m, str) or m not in PRICES for m in allowed)
+                or not isinstance(default, str) or default not in allowed):
+            raise ApiError(422, "INVALID_MODEL_SETTINGS", "Выберите модели из каталога и модель по умолчанию из разрешенного списка")
+        workspace.model_settings = {"default_model": default, "allowed_models": sorted(set(allowed))}
     audit(ctx.db, workspace_id, ctx.user.id, "workspace.update", f"workspace:{workspace_id}")
     ctx.db.commit()
     return _workspace(workspace, role)

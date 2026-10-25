@@ -12,7 +12,7 @@ from sqlalchemy import text
 from . import errors
 from .config import settings
 from .db import SessionLocal
-from .routers import core, projects, runs
+from .routers import core, oidc, projects, runs, telegram
 from .services import seed_environment_versions
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
@@ -52,7 +52,7 @@ def create_app() -> FastAPI:
         allow_methods=["GET", "POST", "PATCH", "PUT", "DELETE"],
         allow_headers=["Content-Type", "X-CSRF-Token", "If-Match", "Idempotency-Key", "Last-Event-ID", "X-Request-ID"],
     )
-    for module in (core, projects, runs):
+    for module in (core, oidc, projects, runs, telegram):
         app.include_router(module.router, prefix="/api/v1")
 
     @app.get("/healthz", include_in_schema=False)

@@ -2,78 +2,56 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useState, type FormEvent } from "react";
-
+import QRCode from "qrcode";
+import { Suspense, useEffect, useRef, useState, type FormEvent } from "react";
 import { Button, Notice } from "@/components/ui";
-import { api, errorMessage } from "@/lib/api";
+import { api, ApiError, errorMessage } from "@/lib/api";
 import type { Me } from "@/lib/types";
 
+type Challenge = { id: string; url: string; code: string; expires_at: string };
+
 function LoginForm() {
-  const router = useRouter();
-  const params = useSearchParams();
-  const queryClient = useQueryClient();
-  const config = useQuery({ queryKey: ["auth-config"], queryFn: () => api<{ mode: string; oidc_configured: boolean }>("/auth/config") });
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  const submit = async (event: FormEvent) => {
-    event.preventDefault();
-    setBusy(true);
-    setError(null);
-    try {
-      const me = await api<Me>("/auth/dev-login", { body: { display_name: name, email } });
-      queryClient.setQueryData(["me"], me);
-      const next = params.get("next");
-      router.replace(next && next.startsWith("/") ? next : me.workspaces.length ? `/w/${me.last_workspace_id ?? me.workspaces[0]!.id}/projects` : "/onboarding");
-    } catch (err) {
-      setError(errorMessage(err));
-      setBusy(false);
-    }
-  };
-
-  return (
-    <main className="login">
-      <section className="login-card" aria-labelledby="login-title">
-        <Image src="/brand/chobra-mark-transparent.png" alt="Chobra" width={112} height={107} priority />
-        <h1 id="login-title" className="t-page" style={{ color: "var(--color-accent-primary)", marginTop: 20 }}>
-          Chobra
-        </h1>
-        <p className="t-secondary measure" style={{ margin: "8px 0 28px" }}>
-          Проверьте правило премии на ИИ участниках до того, как его введут для людей: что станет выгодным, где награда разойдется с результатом и как это исправить.
-        </p>
-        {config.data?.mode === "dev" ? (
-          <form onSubmit={submit} className="stack" style={{ width: "100%" }}>
-            <Notice tone="warn">Режим разработки: вход без поставщика идентификации. В рабочем развертывании здесь кнопка входа через OIDC.</Notice>
-            <div className="field">
-              <label htmlFor="name">Имя</label>
-              <input id="name" className="input" value={name} onChange={(e) => setName(e.target.value)} required autoComplete="name" />
-            </div>
-            <div className="field">
-              <label htmlFor="email">Почта</label>
-              <input id="email" className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" />
-            </div>
-            {error ? <p className="field error" role="alert">{error}</p> : null}
-            <Button variant="primary" type="submit" busy={busy}>
-              Войти
-            </Button>
-          </form>
-        ) : config.data ? (
-          <a className="btn btn-primary" href="/api/v1/auth/oidc/start">
-            Войти через поставщика идентификации
-          </a>
-        ) : null}
-      </section>
-    </main>
-  );
+  const config = useQuery({queryKey:["auth-config"],queryFn:()=>api<{mode:string;telegram_enabled:boolean;telegram_username:string;oidc_configured:boolean}>("/auth/config"),retry:1});
+  const router=useRouter(); const params=useSearchParams(); const cache=useQueryClient();
+  const [challenge,setChallenge]=useState<Challenge|null>(null); const [qr,setQr]=useState("");
+  const [error,setError]=useState<string|null>(null); const [expired,setExpired]=useState(false); const [busy,setBusy]=useState(false);
+  const [name,setName]=useState("");const [email,setEmail]=useState(""); const started=useRef(false);
+  const finish=(me:Me)=>{cache.setQueryData(["me"],me);const next=params.get("next");router.replace(next?.startsWith("/")&&!next.startsWith("//")?next:me.workspaces.length?`/w/${me.last_workspace_id??me.workspaces[0]!.id}/projects`:"/onboarding");};
+  const refresh=async()=>{setBusy(true);setError(null);setExpired(false);setChallenge(null);setQr("");try{const c=await api<Challenge>("/auth/telegram/challenge",{body:{}});setQr(await QRCode.toDataURL(c.url,{width:240,margin:2,errorCorrectionLevel:"M",color:{dark:"#070511",light:"#ffffff"}}));setChallenge(c);}catch(e){setError(errorMessage(e));}finally{setBusy(false);}};
+  useEffect(()=>{if(config.data?.telegram_enabled&&!started.current){started.current=true;void refresh();}},[config.data?.telegram_enabled]); // One challenge per mount, including Strict Mode.
+  useEffect(()=>{
+    if(!challenge)return;
+    let stopped=false; let timer:ReturnType<typeof setTimeout>; let failures=0;
+    const poll=async()=>{
+      if(Date.now()>Date.parse(challenge.expires_at)){setExpired(true);return;}
+      try{
+        const s=await api<{status:string}>(`/auth/telegram/challenge/${challenge.id}`);failures=0;
+        if(stopped)return;
+        if(s.status==="approved"){setBusy(true);const me=await api<Me>(`/auth/telegram/challenge/${challenge.id}/consume`,{body:{}});if(!stopped)finish(me);return;}
+        if(s.status==="expired"||s.status==="consumed"){setExpired(true);return;}
+      }catch(e){if(stopped)return;if(e instanceof ApiError&&[404,410].includes(e.status)){setExpired(true);return;}if(++failures>=3)setError("Нет связи с сервером. Проверяем подключение…");}
+      if(!stopped)timer=setTimeout(poll,1500);
+    };
+    timer=setTimeout(poll,1500);return()=>{stopped=true;clearTimeout(timer);};
+  },[challenge]);
+  const devLogin=async(e:FormEvent)=>{e.preventDefault();setBusy(true);setError(null);try{finish(await api<Me>("/auth/dev-login",{body:{display_name:name,email}}));}catch(err){setError(errorMessage(err));setBusy(false);}};
+  return <main className="entry"><section className="entry-content">
+    <Link href="/" className="brand"><Image src="/brand/chobra-mark-transparent.png" alt="" width={40} height={38}/><span>Chobra</span></Link>
+    <h1>Проверьте, к чему<br/>приведёт награда.</h1>
+    <p className="lead">Виртуальные участники пробуют ваши правила. Вы видите, где премия расходится с реальной пользой.</p>
+    {config.isLoading?<p role="status">Подключаемся к серверу…</p>:null}
+    {config.error?<Notice tone="danger">Сервер недоступен. <button className="text-button" onClick={()=>void config.refetch()}>Повторить</button></Notice>:null}
+    {config.data?.telegram_enabled?<div className="telegram-entry">
+      <div className="qr-box">{qr&&!expired?<img src={qr} width={224} height={224} alt="QR-код для входа через Telegram"/>:<span>{expired?"Код истёк":"Готовим QR-код…"}</span>}</div>
+      <div className="stack"><h2 className="t-panel">Вход через Telegram</h2><p className="t-secondary">Отсканируйте код камерой телефона, нажмите «Старт» в боте и подтвердите вход.</p>{challenge&&!expired?<><p className="t-secondary">Сверьте код: <strong className="login-code">{challenge.code}</strong></p><a className="btn btn-primary" href={challenge.url} target="_blank" rel="noopener noreferrer">Открыть Telegram</a><p className="t-caption" role="status">Ожидаем подтверждение. Сайт откроется автоматически.</p></>:null}<Button onClick={()=>void refresh()} busy={busy} variant="ghost">{expired?"Получить новый QR-код":"Обновить код"}</Button></div>
+    </div>:null}
+    {error?<Notice tone="danger">{error}</Notice>:null}
+    {config.data?.mode==="dev"?<details className="advanced"><summary>Локальный вход для разработки</summary><form className="stack" onSubmit={devLogin}><label className="field">Имя<input className="input" required value={name} onChange={e=>setName(e.target.value)}/></label><label className="field">Почта<input className="input" required type="email" value={email} onChange={e=>setEmail(e.target.value)}/></label><Button type="submit" busy={busy}>Войти в тестовый аккаунт</Button></form></details>:null}
+    {config.data?.oidc_configured?<a className="btn" href="/api/v1/auth/oidc/start">Войти через организацию</a>:null}
+    {config.data&&!config.data.telegram_enabled&&!config.data.oidc_configured&&config.data.mode!=="dev"?<Notice tone="danger">Вход ещё не настроен администратором.</Notice>:null}
+    <Link className="help-link" href="/help">Как работает Chobra и с чего начать</Link>
+  </section></main>;
 }
-
-export default function LoginPage() {
-  return (
-    <Suspense>
-      <LoginForm />
-    </Suspense>
-  );
-}
+export default function LoginPage(){return <Suspense><LoginForm/></Suspense>;}

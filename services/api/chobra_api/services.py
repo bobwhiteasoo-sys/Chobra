@@ -27,6 +27,7 @@ from .models import (
     RuleVersion,
     Run,
     ScenarioVersion,
+    Workspace,
 )
 
 FINAL_RUN_STATES = {"completed", "canceled", "failed", "budget_exhausted"}
@@ -127,6 +128,8 @@ def expand_plan(db: Session, project: Project, plan: dict[str, Any]) -> dict[str
         raise ApiError(422, "BAD_PLAN", "Версия сценария не найдена в проекте")
     if scenario.status != "published":
         raise ApiError(422, "BAD_PLAN", "Запуски используют только опубликованный сценарий")
+    workspace = db.get(Workspace, project.workspace_id)
+    model_settings = workspace.model_settings or {}
     variants = []
     for item in plan.get("variants", []):
         rule = db.get(RuleVersion, uuid.UUID(str(item["rule_version_id"])))
@@ -138,8 +141,11 @@ def expand_plan(db: Session, project: Project, plan: dict[str, Any]) -> dict[str
         profile = db.get(AgentProfile, uuid.UUID(str(profile_id))) if profile_id else None
         if profile is None or profile.project_id != project.id:
             raise ApiError(422, "BAD_PLAN", "Профиль агентов не найден")
+        model = profile.model_config_json.get("model") or model_settings.get("default_model", "claude-opus-5-5")
+        if profile.kind == "model" and model not in model_settings.get("allowed_models", list(PRICES)):
+            raise ApiError(422, "MODEL_NOT_ALLOWED", "Модель профиля не разрешена в настройках пространства")
         variants.append({"label": item.get("label") or rule.name, "rule_version_id": str(rule.id), "rule_hash": rule.ast_hash, "agent_profile_id": str(profile.id),
-                         "mode": profile.mode, "kind": profile.kind, "model": profile.model_config_json.get("model") if profile.kind == "model" else "scripted"})
+                         "mode": profile.mode, "kind": profile.kind, "model": model if profile.kind == "model" else "scripted"})
     if not 1 <= len(variants) <= 4:
         raise ApiError(422, "BAD_PLAN", "В серии от одного до четырех вариантов правил")
     seeds = [int(s) for s in plan.get("conditions", {}).get("seeds", [])]

@@ -3,6 +3,9 @@ import type { NextConfig } from "next";
 const api = process.env.CHOBRA_API_ORIGIN ?? "http://127.0.0.1:8000";
 
 const config: NextConfig = {
+  output: "standalone",
+  devIndicators: false,
+  experimental: { cpus: 2 },
   reactStrictMode: true,
   poweredByHeader: false,
   async rewrites() {

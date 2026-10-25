@@ -1,0 +1,13 @@
+.git
+.venv
+.localdb
+.objects
+**/node_modules
+**/.next
+**/test-results
+**/playwright-report
+**/__pycache__
+**/*.egg-info
+**/*.tsbuildinfo
+.env*
+preview-access.txt

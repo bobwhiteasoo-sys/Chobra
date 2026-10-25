@@ -442,6 +442,14 @@ def _get_comparison(ctx, comparison_id: uuid.UUID) -> Comparison:
     return comparison
 
 
+@router.get("/projects/{project_id}/comparisons")
+def list_comparisons(project_id: uuid.UUID, ctx: CtxDep) -> dict[str, Any]:
+    ctx.require_project(project_id)
+    rows = ctx.db.execute(select(Comparison, ExperimentBatch.title).join(ExperimentBatch, ExperimentBatch.id == Comparison.batch_id)
+                          .where(Comparison.project_id == project_id).order_by(Comparison.created_at.desc()).limit(100)).all()
+    return {"items": [{**_comparison(c), "batch_title": title} for c, title in rows]}
+
+
 @router.get("/comparisons/{comparison_id}")
 def get_comparison(comparison_id: uuid.UUID, ctx: CtxDep) -> dict[str, Any]:
     comparison = _get_comparison(ctx, comparison_id)
@@ -458,6 +466,13 @@ class Exclusion(BaseModel):
 def exclude(comparison_id: uuid.UUID, payload: Exclusion, ctx: CtxDep) -> dict[str, Any]:
     comparison = _get_comparison(ctx, comparison_id)
     ctx.require_project(comparison.project_id, "edit")
+    run = ctx.db.get(Run, payload.run_id)
+    if run is None or run.batch_id != comparison.batch_id:
+        raise not_found("Запуск сравнения")
+    if not payload.reason.strip():
+        raise ApiError(422, "EXCLUSION_REASON_REQUIRED", "Укажите причину исключения")
+    if any(item["run_id"] == str(payload.run_id) for item in comparison.excluded_runs):
+        raise conflict("ALREADY_EXCLUDED", "Запуск уже исключен из анализа")
     comparison.excluded_runs = [*comparison.excluded_runs, {"run_id": str(payload.run_id), "reason": payload.reason, "by": str(ctx.user.id), "at": utcnow().isoformat()}]
     enqueue(ctx.db, comparison.workspace_id, "batch.finalize", comparison.batch_id, {"comparison_id": str(comparison.id)})
     ctx.db.commit()
@@ -474,6 +489,8 @@ def decide(comparison_id: uuid.UUID, payload: Decision, ctx: CtxDep) -> dict[str
     """Records a decision. Accepting a variant never changes real systems (FLOW-007)."""
     comparison = _get_comparison(ctx, comparison_id)
     ctx.require_project(comparison.project_id, "edit")
+    if payload.accepted_variant not in comparison.result.get("variants", []):
+        raise ApiError(422, "UNKNOWN_VARIANT", "Выберите вариант из этого сравнения")
     comparison.decision = {"accepted_variant": payload.accepted_variant, "note": payload.note, "by": str(ctx.user.id), "at": utcnow().isoformat()}
     audit(ctx.db, comparison.workspace_id, ctx.user.id, "comparison.decision", f"comparison:{comparison.id}", accepted=payload.accepted_variant)
     ctx.db.commit()

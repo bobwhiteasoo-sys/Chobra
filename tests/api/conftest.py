@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 import tempfile
+from urllib.parse import urlparse
 
 os.environ.setdefault("CHOBRA_DATABASE_URL", "postgresql+psycopg://chobra_app@127.0.0.1:54329/chobra_test")
 os.environ.setdefault("CHOBRA_OWNER_DATABASE_URL", "postgresql+psycopg://chobra_owner@127.0.0.1:54329/chobra_test")
@@ -11,6 +12,7 @@ os.environ["CHOBRA_AUTH_MODE"] = "dev"
 os.environ.pop("ANTHROPIC_API_KEY", None)
 
 import psycopg  # noqa: E402
+from psycopg import sql  # noqa: E402
 import pytest  # noqa: E402
 from alembic import command  # noqa: E402
 from alembic.config import Config  # noqa: E402
@@ -20,10 +22,15 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 
 
 def _reset_database() -> None:
-    with psycopg.connect(host="127.0.0.1", port=54329, user="postgres", dbname="postgres", autocommit=True) as conn:
-        conn.execute("SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = 'chobra_test' AND pid <> pg_backend_pid()")
-        conn.execute("DROP DATABASE IF EXISTS chobra_test")
-        conn.execute("CREATE DATABASE chobra_test OWNER chobra_owner")
+    owner = urlparse(os.environ["CHOBRA_OWNER_DATABASE_URL"].replace("postgresql+psycopg://", "postgresql://"))
+    database = owner.path.lstrip("/")
+    if not database.endswith("_test"):
+        raise RuntimeError("Refusing to reset a database whose name does not end in _test")
+    admin = os.environ.get("CHOBRA_TEST_ADMIN_DATABASE_URL", "postgresql://postgres@127.0.0.1:54329/postgres")
+    with psycopg.connect(admin, autocommit=True) as conn:
+        conn.execute("SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = %s AND pid <> pg_backend_pid()", (database,))
+        conn.execute(sql.SQL("DROP DATABASE IF EXISTS {}").format(sql.Identifier(database)))
+        conn.execute(sql.SQL("CREATE DATABASE {} OWNER {}").format(sql.Identifier(database), sql.Identifier(owner.username)))
     config = Config(os.path.join(ROOT, "services/api/alembic.ini"))
     config.set_main_option("script_location", os.path.join(ROOT, "services/api/migrations"))
     config.set_main_option("sqlalchemy.url", os.environ["CHOBRA_OWNER_DATABASE_URL"])

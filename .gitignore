@@ -13,3 +13,9 @@ apps/web/out/
 .env.local
 test-results/
 playwright-report/
+
+.env.*
+!.env.example
+*.tsbuildinfo
+.DS_Store
+preview-access.txt

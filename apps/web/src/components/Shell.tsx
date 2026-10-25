@@ -105,73 +105,28 @@ export function Shell({ children }: { children: ReactNode }) {
 
   return (
     <WorkspaceContext.Provider value={context}>
-      <div className="shell">
-        <aside className="sidebar" aria-label="Основная навигация">
+      <div className="simple-shell">
+        <header className="topbar">
           <Link href={`/w/${workspace.id}/projects`} className="brand" aria-label="Chobra, к проектам">
-            <Image src="/brand/chobra-64.png" alt="" width={32} height={32} priority />
-            <span className="label">Chobra</span>
+            <Image src="/brand/chobra-mark-transparent.png" alt="" width={30} height={29} priority /><span>Chobra</span>
           </Link>
-          <Dropdown.Root>
-            <Dropdown.Trigger asChild>
-              <button className="ws-switch" type="button" aria-label={`Рабочее пространство: ${workspace.name}. Сменить`}>
-                <span className="ws-avatar" aria-hidden>
-                  {workspace.name.slice(0, 1).toUpperCase()}
-                </span>
-                <span className="label" style={{ flex: 1, minWidth: 0 }}>
-                  <span className="clamp-2" style={{ fontWeight: 600, fontSize: 14 }}>
-                    {workspace.name}
-                  </span>
-                </span>
-                <ChevronsUpDown className="label" size={16} aria-hidden />
-              </button>
-            </Dropdown.Trigger>
-            <Dropdown.Portal>
-              <Dropdown.Content className="menu" align="start" sideOffset={6}>
-                {me.data.workspaces.map((w) => (
-                  <Dropdown.Item key={w.id} className="menu-item" onSelect={() => { context.setWorkspaceId(w.id); router.push(`/w/${w.id}/projects`); }}>
-                    <span className="ws-avatar" aria-hidden>{w.name.slice(0, 1).toUpperCase()}</span>
-                    <span style={{ flex: 1 }}>{w.name}</span>
-                    <span className="t-caption">{w.role}</span>
-                  </Dropdown.Item>
-                ))}
-                <Dropdown.Separator className="divider" style={{ margin: "6px 0" }} />
-                <Dropdown.Item className="menu-item" onSelect={() => router.push("/onboarding?new=1")}>
-                  <Plus size={16} aria-hidden /> Новое пространство
-                </Dropdown.Item>
-              </Dropdown.Content>
-            </Dropdown.Portal>
-          </Dropdown.Root>
-          <nav className="nav">
-            {links.map((link) => (
-              <Link key={link.href} href={link.href} className="nav-link" aria-current={active(link) ? "page" : undefined}>
-                <link.icon size={18} strokeWidth={1.75} aria-hidden />
-                <span className="label">{link.label}</span>
-              </Link>
-            ))}
+          <nav className="topnav" aria-label="Основная навигация">
+            {[links[0]!, links[2]!, links[3]!].map(link=><Link key={link.href} href={link.href} aria-current={active(link)?"page":undefined}>{link.label}</Link>)}
+            <Link href="/help">Как пользоваться</Link>
           </nav>
-          <div className="nav-group" style={{ marginTop: "auto" }}>
-            {me.data.auth_mode === "dev" ? <div className="dev-badge">Вход в режиме разработки. Поставщик OIDC не подключен.</div> : null}
-            <Link href="/settings/profile" className="nav-link" aria-current={pathname === "/settings/profile" ? "page" : undefined}>
-              <UserRound size={18} strokeWidth={1.75} aria-hidden />
-              <span className="label">{me.data.display_name}</span>
-            </Link>
-            <button type="button" className="nav-link" onClick={logout} style={{ border: 0, background: "transparent", cursor: "pointer" }}>
-              <LogOut size={18} strokeWidth={1.75} aria-hidden />
-              <span className="label">Выйти</span>
-            </button>
-          </div>
-        </aside>
-        <main className="main" id="main">
-          {children}
-        </main>
-        <nav className="mobile-nav" aria-label="Навигация">
-          {[links[0]!, links[2]!, links[3]!, { href: "/settings/profile", label: "Профиль", icon: UserRound, match: ["/settings"] }].map((link) => (
-            <Link key={link.href} href={link.href} aria-current={active(link) ? "page" : undefined}>
-              <link.icon size={20} strokeWidth={1.75} aria-hidden />
-              {link.label}
-            </Link>
-          ))}
-        </nav>
+          <Dropdown.Root><Dropdown.Trigger asChild><button className="account-button" aria-label="Аккаунт и настройки">{me.data.display_name}<ChevronsUpDown size={14}/></button></Dropdown.Trigger>
+            <Dropdown.Portal><Dropdown.Content className="menu" align="end" sideOffset={10}>
+              {me.data.workspaces.map(w=><Dropdown.Item className="menu-item" key={w.id} onSelect={()=>{context.setWorkspaceId(w.id);router.push(`/w/${w.id}/projects`);}}>{w.name}</Dropdown.Item>)}
+              <Dropdown.Separator className="divider"/>
+              <Dropdown.Item className="menu-item" onSelect={()=>router.push("/settings/workspace")}>Настройки</Dropdown.Item>
+              <Dropdown.Item className="menu-item" onSelect={()=>router.push("/settings/profile")}>Мой аккаунт</Dropdown.Item>
+              <Dropdown.Item className="menu-item" onSelect={()=>router.push("/onboarding?new=1")}>Новое пространство</Dropdown.Item>
+              <Dropdown.Item className="menu-item" onSelect={()=>void logout()}>Выйти</Dropdown.Item>
+            </Dropdown.Content></Dropdown.Portal>
+          </Dropdown.Root>
+        </header>
+        <main className="simple-main" id="main">{children}</main>
+        <footer className="app-footer">Chobra · Проверка правил в симуляции <Link href="/help">Помощь</Link></footer>
       </div>
     </WorkspaceContext.Provider>
   );

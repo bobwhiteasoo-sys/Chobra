@@ -1,0 +1,7 @@
+services:
+  api:
+    environment:
+      CHOBRA_SECURE_COOKIES: "0"
+  worker:
+    environment:
+      CHOBRA_SECURE_COOKIES: "0"

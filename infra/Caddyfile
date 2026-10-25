@@ -1,0 +1,10 @@
+{$CHOBRA_DOMAIN} {
+    encode zstd gzip
+    # Private preview gate: dev sign-in must never be directly public.
+    basic_auth {
+        {$CHOBRA_PREVIEW_USER} {$CHOBRA_PREVIEW_HASH}
+    }
+    reverse_proxy web:3100 {
+        flush_interval -1
+    }
+}

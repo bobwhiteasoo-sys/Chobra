@@ -1,138 +1,77 @@
 "use client";
-
-import { useCallback, useEffect, useReducer, useRef, useState } from "react";
-
-import { api } from "@/lib/api";
+import { useEffect, useRef, useState } from "react";
+import { api, ApiError, errorMessage } from "@/lib/api";
 import type { RunEvent } from "@/lib/types";
-
-import { applyEvent, emptyProjection, type Projection } from "./projection";
-
+import { applyEvent, emptyProjection } from "./projection";
 export type Connection = "connecting" | "live" | "lost" | "ended" | "revoked";
 
-type Action = { type: "events"; events: RunEvent[] } | { type: "reset" };
-
-type Store = { projection: Projection; log: RunEvent[] };
-
-function reducer(store: Store, action: Action): Store {
-  if (action.type === "reset") return { projection: emptyProjection(), log: [] };
-  let projection = store.projection;
-  const fresh: RunEvent[] = [];
-  for (const event of action.events) {
-    const next = applyEvent(projection, event);
-    if (next !== projection) {
-      projection = next;
-      fresh.push(event);
-    }
-  }
-  return fresh.length ? { projection, log: [...store.log, ...fresh] } : store;
-}
-
-/**
- * Live view of a run. Applies only committed events, in seq order, exactly once.
- * A gap in seq is filled from the event journal before anything later is applied.
- */
-export function useRunStream(runId: string, enabled: boolean) {
-  const [store, dispatch] = useReducer(reducer, undefined, () => ({ projection: emptyProjection(), log: [] }));
+/** Each effect owns its cursor and abort controller: an old run can never populate a new one. */
+export function useRunStream(runId: string, enabled: boolean, live = true) {
+  const [store, setStore] = useState(() => ({ projection: emptyProjection(), log: [] as RunEvent[] }));
+  const current = useRef({runId: "", projection: emptyProjection(), log: [] as RunEvent[]});
   const [connection, setConnection] = useState<Connection>("connecting");
   const [lastUpdate, setLastUpdate] = useState<number | null>(null);
   const [recovered, setRecovered] = useState<number | null>(null);
-  const lastSeq = useRef(0);
-  const filling = useRef<Promise<void> | null>(null);
-  const lostAtSeq = useRef<number | null>(null);
-
-  const accept = useCallback((events: RunEvent[]) => {
-    const ordered = events.filter((e) => e.seq > lastSeq.current).sort((a, b) => a.seq - b.seq);
-    if (!ordered.length) return;
-    lastSeq.current = ordered[ordered.length - 1]!.seq;
-    dispatch({ type: "events", events: ordered });
-    setLastUpdate(Date.now());
-  }, []);
-
-  const fill = useCallback(
-    async (until?: number) => {
-      let after = lastSeq.current;
-      let total = 0;
-      for (;;) {
-        const page = await api<{ items: RunEvent[]; last_seq: number }>(`/runs/${runId}/events?after=${after}&limit=2000${until ? `&until=${until}` : ""}`);
-        accept(page.items);
-        total += page.items.length;
-        if (!page.items.length) break;
-        after = page.items[page.items.length - 1]!.seq;
-        if (until && after >= until) break;
-        if (page.items.length < 2000) break;
-      }
-      return total;
-    },
-    [runId, accept],
-  );
-
+  const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
+    if (current.current.runId !== runId) {
+      current.current = {runId, projection: emptyProjection(), log: []};
+      setStore({projection: current.current.projection, log: []}); setLastUpdate(null); setRecovered(null);
+    }
+    setError(null); setConnection("connecting");
     if (!enabled) return;
-    let source: EventSource | null = null;
-    let cancelled = false;
-    let pending: RunEvent[] = [];
-
-    const flush = async () => {
-      if (filling.current) return;
-      while (pending.length) {
-        pending.sort((a, b) => a.seq - b.seq);
-        const next = pending[0]!;
-        if (next.seq <= lastSeq.current) {
-          pending.shift();
-          continue;
-        }
-        if (next.seq > lastSeq.current + 1) {
-          filling.current = fill(next.seq - 1).then(() => undefined);
-          await filling.current;
-          filling.current = null;
-          continue;
-        }
-        accept([pending.shift()!]);
-      }
-    };
-
-    const open = async () => {
-      await fill();
+    let cancelled = false, cursor = current.current.projection.lastSeq, source: EventSource | null = null, retry: ReturnType<typeof setTimeout> | undefined;
+    let queue = Promise.resolve();
+    const controller = new AbortController();
+    const accept = (events: RunEvent[]) => {
       if (cancelled) return;
-      source = new EventSource(`/api/v1/runs/${runId}/stream?cursor=${lastSeq.current}`);
-      source.addEventListener("open", () => {
-        setConnection("live");
-        const lostAt = lostAtSeq.current;
-        if (lostAt !== null) {
-          // The browser reconnects with Last-Event-ID; report how much arrived after the gap.
-          window.setTimeout(() => {
-            setRecovered(lastSeq.current - lostAt);
-            lostAtSeq.current = null;
-          }, 1200);
-        }
-      });
-      source.addEventListener("run_event", (message) => {
-        pending.push(JSON.parse((message as MessageEvent).data) as RunEvent);
-        void flush();
-      });
-      source.addEventListener("heartbeat", () => setLastUpdate(Date.now()));
-      source.addEventListener("end", () => {
-        setConnection("ended");
-        source?.close();
-      });
-      source.addEventListener("access_revoked", () => {
-        setConnection("revoked");
-        source?.close();
-      });
-      source.addEventListener("error", () => {
-        if (source?.readyState === EventSource.CLOSED) return;
-        if (lostAtSeq.current === null) lostAtSeq.current = lastSeq.current;
-        setConnection("lost");
-      });
+      const fresh = events.filter(e => e.seq > cursor).sort((a,b) => a.seq-b.seq);
+      for (const event of fresh) { if (event.seq !== cursor + 1) throw new Error(`Пропуск журнала после #${cursor}`); cursor = event.seq; }
+      if (fresh.length) { current.current = {runId, projection: fresh.reduce(applyEvent, current.current.projection), log: [...current.current.log, ...fresh]}; setStore(current.current); setLastUpdate(Date.now()); }
     };
-    setConnection("connecting");
-    void open();
-    return () => {
-      cancelled = true;
+    const fill = async (until?: number) => {
+      const start = cursor;
+      for (;;) {
+        const page = await api<{ items: RunEvent[]; last_seq: number }>(`/runs/${runId}/events?after=${cursor}&limit=2000${until !== undefined ? `&until=${until}` : ""}`, { signal: controller.signal });
+        if (cancelled) return 0;
+        const before = cursor; accept(page.items);
+        if (until !== undefined && cursor >= until) break;
+        if (cursor >= page.last_seq) break;
+        if (cursor === before) throw new Error(`Журнал неполон после #${cursor}. Повторное подключение…`);
+      }
+      return cursor-start;
+    };
+    const fail = (cause: unknown) => {
+      if (cancelled) return;
       source?.close();
-      pending = [];
+      if (cause instanceof ApiError && [401,403,404].includes(cause.status)) { setConnection("revoked"); current.current = {runId, projection: emptyProjection(), log: []}; setStore(current.current); setError(errorMessage(cause)); return; }
+      setError(errorMessage(cause)); setConnection("lost");
+      clearTimeout(retry); retry = setTimeout(() => { void open(true); }, 2000);
     };
-  }, [runId, enabled, fill, accept]);
-
-  return { projection: store.projection, log: store.log, connection, lastUpdate, recovered, clearRecovered: () => setRecovered(null) };
+    const open = async (recovery = false) => {
+      try {
+        const count = await fill(); if (cancelled) return;
+        if (recovery) setRecovered(count);
+        setError(null);
+        if (!live) { setConnection("ended"); return; }
+        source = new EventSource(`/api/v1/runs/${runId}/stream?cursor=${cursor}`);
+        source.addEventListener("open", () => { if (!cancelled) setConnection("live"); });
+        source.addEventListener("run_event", message => {
+          queue = queue.then(async () => {
+            if (cancelled) return;
+            const event = JSON.parse((message as MessageEvent).data) as RunEvent;
+            if (event.seq > cursor + 1) { setConnection("connecting"); const count = await fill(event.seq-1); setRecovered(count); }
+            accept([event]); setConnection("live");
+          }).catch(fail);
+        });
+        source.addEventListener("end", () => { queue = queue.then(() => { if (!cancelled) setConnection("ended"); source?.close(); }); });
+        source.addEventListener("access_revoked", () => { cancelled = true; controller.abort(); source?.close(); clearTimeout(retry); setConnection("revoked"); current.current = {runId, projection: emptyProjection(), log: []}; setStore(current.current); });
+        source.addEventListener("error", () => fail(new Error("Соединение потеряно. Показано последнее подтвержденное состояние.")));
+      } catch (cause) { fail(cause); }
+    };
+    void open();
+    return () => { cancelled = true; controller.abort(); source?.close(); clearTimeout(retry); };
+  }, [runId, enabled, live, attempt]);
+  return { ...store, connection, lastUpdate, recovered, error, clearRecovered: () => setRecovered(null), retry: () => setAttempt(a => a+1) };
 }

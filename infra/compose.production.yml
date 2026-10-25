@@ -1,0 +1,140 @@
+name: chobra
+
+x-api-environment: &api-environment
+  CHOBRA_DATABASE_URL: postgresql+psycopg://chobra_app:${CHOBRA_APP_PASSWORD:?}@db:5432/chobra
+  CHOBRA_AUTH_MODE: ${CHOBRA_AUTH_MODE:-telegram}
+  CHOBRA_TELEGRAM_BOT_TOKEN: ${CHOBRA_TELEGRAM_BOT_TOKEN:-}
+  CHOBRA_TELEGRAM_BOT_USERNAME: ${CHOBRA_TELEGRAM_BOT_USERNAME:-chobraAI}
+  CHOBRA_OIDC_ISSUER: ${CHOBRA_OIDC_ISSUER:-}
+  CHOBRA_OIDC_CLIENT_ID: ${CHOBRA_OIDC_CLIENT_ID:-}
+  CHOBRA_OIDC_CLIENT_SECRET: ${CHOBRA_OIDC_CLIENT_SECRET:-}
+  CHOBRA_OIDC_REDIRECT_URI: https://${CHOBRA_DOMAIN:?}/api/v1/auth/oidc/callback
+  CHOBRA_PUBLIC_URL: https://${CHOBRA_DOMAIN:?}
+  CHOBRA_SECURE_COOKIES: "1"
+  CHOBRA_SIGNING_KEY: ${CHOBRA_SIGNING_KEY:?}
+  CHOBRA_SECRETS_KEY: ${CHOBRA_SECRETS_KEY:?}
+  CHOBRA_OBJECTS_DIR: /data/objects
+
+services:
+  db:
+    image: postgres:18.4-bookworm@sha256:882236b897e39051d2368c5ccc6cda944904723506b2dfc97f2a8f5bc9afa382
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+      CHOBRA_OWNER_PASSWORD: ${CHOBRA_OWNER_PASSWORD:?}
+      CHOBRA_APP_PASSWORD: ${CHOBRA_APP_PASSWORD:?}
+    volumes:
+      - database:/var/lib/postgresql
+      - ./init-db.sh:/docker-entrypoint-initdb.d/10-chobra.sh:ro
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -h 127.0.0.1 -U postgres -d postgres"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+    networks: [backend]
+
+  migrate:
+    build: {context: .., dockerfile: infra/Dockerfile.api}
+    image: chobra-api:local
+    environment:
+      <<: *api-environment
+      CHOBRA_OWNER_DATABASE_URL: postgresql+psycopg://chobra_owner:${CHOBRA_OWNER_PASSWORD:?}@db:5432/chobra
+    command: [alembic, -c, services/api/alembic.ini, upgrade, head]
+    depends_on: {db: {condition: service_healthy}}
+    networks: [backend]
+
+  api:
+    image: chobra-api:local
+    restart: unless-stopped
+    environment: *api-environment
+    volumes: [objects:/data/objects]
+    read_only: true
+    tmpfs: [/tmp]
+    depends_on: {migrate: {condition: service_completed_successfully}}
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/readyz')"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    networks: [backend]
+
+  worker:
+    image: chobra-api:local
+    restart: unless-stopped
+    environment: *api-environment
+    command: [python, -m, chobra_worker.main, --threads, "4"]
+    volumes: [objects:/data/objects]
+    read_only: true
+    tmpfs: [/tmp]
+    depends_on: {migrate: {condition: service_completed_successfully}}
+    networks: [backend]
+
+  bot:
+    image: chobra-api:local
+    restart: unless-stopped
+    environment: *api-environment
+    command: [python, -m, chobra_api.telegram_bot]
+    volumes: [objects:/data/objects]
+    read_only: true
+    tmpfs: [/tmp]
+    depends_on: {migrate: {condition: service_completed_successfully}}
+    networks: [backend]
+
+  web:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.web
+      args:
+        CHOBRA_PUBLIC_URL: https://${CHOBRA_DOMAIN:?}
+    image: chobra-web:local
+    restart: unless-stopped
+    read_only: true
+    tmpfs: [/app/.next/cache]
+    depends_on: {api: {condition: service_healthy}}
+    networks: [backend, frontend]
+
+  caddy:
+    image: caddy:2.10.2-alpine@sha256:4c6e91c6ed0e2fa03efd5b44747b625fec79bc9cd06ac5235a779726618e530d
+    restart: unless-stopped
+    environment:
+      CHOBRA_DOMAIN: ${CHOBRA_DOMAIN:?}
+      CHOBRA_PREVIEW_USER: ${CHOBRA_PREVIEW_USER:?}
+      CHOBRA_PREVIEW_HASH: ${CHOBRA_PREVIEW_HASH:?}
+    ports: ["80:80", "443:443", "443:443/udp"]
+    volumes: ["./Caddyfile:/etc/caddy/Caddyfile:ro", "caddy_data:/data", "caddy_config:/config"]
+    depends_on: [web]
+    networks: [frontend]
+
+  tests:
+    profiles: [test]
+    image: chobra-api:local
+    environment:
+      <<: *api-environment
+      # The API TestClient uses plain HTTP, so secure cookies are not sent there.
+      CHOBRA_SECURE_COOKIES: "0"
+      CHOBRA_DATABASE_URL: postgresql+psycopg://chobra_app:${CHOBRA_APP_PASSWORD:?}@db:5432/chobra_test
+      CHOBRA_OWNER_DATABASE_URL: postgresql+psycopg://chobra_owner:${CHOBRA_OWNER_PASSWORD:?}@db:5432/chobra_test
+      CHOBRA_TEST_ADMIN_DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:?}@db:5432/postgres
+      CHOBRA_OBJECTS_DIR: /tmp/chobra-test-objects
+    command: [pytest, --junitxml=/tmp/results.xml]
+    depends_on: {db: {condition: service_healthy}}
+    networks: [backend]
+
+  e2e:
+    profiles: [test]
+    build: {context: .., dockerfile: infra/Dockerfile.e2e}
+    environment:
+      CHOBRA_E2E_URL: http://web:3100
+      CHOBRA_E2E_REAL: "1"
+    depends_on: {web: {condition: service_started}}
+    networks: [backend]
+
+networks:
+  backend:
+  frontend:
+volumes:
+  database:
+  objects:
+  caddy_data:
+  caddy_config:

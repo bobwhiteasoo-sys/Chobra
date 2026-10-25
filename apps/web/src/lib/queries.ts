@@ -79,7 +79,7 @@ export const useFinding = (id: string | undefined) =>
   });
 
 export const useComparison = (id: string | undefined) =>
-  useQuery({ queryKey: ["comparison", id], queryFn: () => api<Comparison>(`/comparisons/${id}`), enabled: Boolean(id) });
+  useQuery({ queryKey: ["comparison", id], queryFn: () => api<Comparison>(`/comparisons/${id}`), enabled: Boolean(id), refetchInterval: query => query.state.data && query.state.data.excluded_runs.length !== (query.state.data.completeness.excluded ?? 0) ? 1200 : false });
 
 export const useReport = (id: string | undefined) =>
   useQuery({

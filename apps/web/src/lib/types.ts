@@ -4,6 +4,7 @@ export type Me = {
   id: string;
   display_name: string;
   email: string | null;
+  locale: "ru" | "en";
   auth_mode: string;
   csrf_token: string;
   last_workspace_id: string | null;

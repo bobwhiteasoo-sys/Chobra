@@ -1,0 +1,19 @@
+FROM node:24.21.0-bookworm-slim@sha256:d6aa754f16b3197301076f047b5def2f02ea1dbbc2ca920407d46d7ec7f87b20 AS build
+WORKDIR /app
+COPY apps/web/package.json apps/web/package-lock.json ./
+RUN npm ci
+COPY apps/web/ ./
+ARG CHOBRA_API_ORIGIN=http://api:8000
+ARG CHOBRA_PUBLIC_URL=http://localhost:3100
+ENV CHOBRA_API_ORIGIN=$CHOBRA_API_ORIGIN CHOBRA_PUBLIC_URL=$CHOBRA_PUBLIC_URL NEXT_TELEMETRY_DISABLED=1
+RUN npm run build
+
+FROM node:24.21.0-bookworm-slim@sha256:d6aa754f16b3197301076f047b5def2f02ea1dbbc2ca920407d46d7ec7f87b20
+WORKDIR /app
+ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3100 HOSTNAME=0.0.0.0
+COPY --from=build --chown=node:node /app/.next/standalone ./
+COPY --from=build --chown=node:node /app/.next/static ./.next/static
+COPY --from=build --chown=node:node /app/public ./public
+USER node
+EXPOSE 3100
+CMD ["node", "server.js"]
