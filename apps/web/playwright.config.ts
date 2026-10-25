@@ -7,7 +7,7 @@ export default defineConfig({
   expect: { timeout: 10_000 },
   reporter: [["list"], ["json", { outputFile: "test-results/results.json" }]],
   use: {
-    baseURL: process.env.CHOBRA_E2E_URL ?? "http://127.0.0.1:3100",
+    baseURL: process.env.CHOBRA_E2E_URL ?? "http://localhost:3100",
     browserName: "chromium",
     viewport: { width: 1440, height: 1000 },
     trace: "retain-on-failure",

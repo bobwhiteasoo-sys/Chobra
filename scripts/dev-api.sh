@@ -3,6 +3,11 @@
 set -euo pipefail
 source "$(dirname "$0")/env.sh"
 cd "$CHOBRA_ROOT"
+if [ -f .env.local ]; then
+  set -a
+  source .env.local
+  set +a
+fi
 infra/localdb/pg.sh start
 (cd services/api && "$CHOBRA_ROOT/.venv/bin/alembic" -c alembic.ini upgrade head)
 export CHOBRA_EMBEDDED_WORKER="${CHOBRA_EMBEDDED_WORKER:-1}"

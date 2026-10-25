@@ -4,9 +4,10 @@ import { fixture, mockApi } from "./mock-api";
 test("UI contract: login → experiment → arena → finding → comparison → signed report", async ({ page }) => {
   const state = await mockApi(page);
   await page.goto("/login");
+  await page.getByText("Локальный вход для разработки", {exact:true}).click();
   await page.getByLabel("Имя", { exact: true }).fill("Исследователь");
   await page.getByLabel("Почта", { exact: true }).fill("test@example.test");
-  await page.getByRole("button", { name: "Войти", exact: true }).click();
+  await page.getByRole("button", { name: "Войти в тестовый аккаунт", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Проекты", exact: true })).toBeVisible();
   await page.goto("/experiments/batch-control");
   await expect(page.getByRole("heading", { name: "Контрольная серия" })).toBeVisible();

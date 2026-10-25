@@ -35,7 +35,7 @@ export async function api<T>(path: string, options: Options = {}): Promise<T> {
     method,
     headers,
     credentials: "same-origin",
-    signal: options.signal,
+    signal: options.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(30_000)]) : AbortSignal.timeout(30_000),
     body: options.body === undefined ? undefined : options.body instanceof FormData ? options.body : JSON.stringify(options.body),
   });
   if (!response.ok) {

@@ -15,6 +15,7 @@ export function Providers({ children }: { children: ReactNode }) {
         defaultOptions: {
           queries: {
             staleTime: 5_000,
+            networkMode: "always",
             refetchOnWindowFocus: false,
             retry: (failures, error) => !(error instanceof ApiError && error.status < 500) && failures < 2,
           },

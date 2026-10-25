@@ -11,3 +11,6 @@
 **/*.tsbuildinfo
 .env*
 preview-access.txt
+
+**/._*
+.DS_Store
