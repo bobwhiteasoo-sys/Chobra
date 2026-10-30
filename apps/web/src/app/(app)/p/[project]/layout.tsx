@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { useAnnounceWorkspace } from "@/components/Shell";
-import { ButtonLink, ErrorState, Loading } from "@/components/ui";
+import { ErrorState, Loading } from "@/components/ui";
 import { useProject } from "@/lib/queries";
 
 const SETTINGS = [
@@ -26,13 +26,12 @@ export default function ProjectLayout({ children }: { children: ReactNode }) {
   if (project.error || !project.data) return <ErrorState error={project.error} onRetry={() => void project.refetch()} />;
   const p = project.data;
   const base = `/p/${id}`;
-  const canRun = p.role !== "viewer" && !p.archived_at;
-  const onOverview = pathname === base;
+  if (pathname === base) return <>{children}</>;
   return (
     <>
       <div className="project-bar">
         <Link className="back-link" style={{ marginBottom: 0 }} href={`/w/${p.workspace_id}/projects`}>
-          <ArrowLeft size={16} aria-hidden /> Все проверки
+          <ArrowLeft size={16} aria-hidden /> На главную
         </Link>
         <div className="row" style={{ gap: 8 }}>
           <Dropdown.Root>
@@ -49,7 +48,6 @@ export default function ProjectLayout({ children }: { children: ReactNode }) {
               </Dropdown.Content>
             </Dropdown.Portal>
           </Dropdown.Root>
-          {canRun && onOverview ? <ButtonLink compact variant="primary" href={`${base}/experiments/new`}>Проверить ещё раз</ButtonLink> : null}
         </div>
       </div>
       {p.archived_at ? <p className="t-caption">Проект в архиве</p> : null}

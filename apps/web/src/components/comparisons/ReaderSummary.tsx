@@ -1,6 +1,6 @@
 "use client";
 import type { ReactNode } from "react";
-import { plainText, ruleTitle } from "@/lib/format";
+import { ruleTitle } from "@/lib/format";
 
 type Brief = { heading: string; context: string; conclusion: string; tested: string; outcome: string; concern: string; next_step: string };
 export type ReaderData = { title: string; description: string; baseline?: string; candidate?: string; pairs: number; next_step: string; limits: string[]; brief?: Brief; metrics: { key: string; title: string; unit: string; baseline: number; candidate: number; baseline_text: string; candidate_text: string; change: string; effect: string; pairs: number }[] };
@@ -20,57 +20,40 @@ export function VerdictBlock({ data, action, level = "h2" }: { data: ReaderData;
   return (
     <section className={`verdict verdict-${tone(data)}`} aria-label="Краткий итог проверки">
       <Heading className="verdict-title">{brief?.conclusion ?? data.title}</Heading>
-      <p className="verdict-outcome">{plainText(brief?.outcome ?? data.description)}</p>
-      {action}
+            {action}
     </section>
   );
 }
 
+function Card({ name, reward, benefit, benefitTitle, wins }: { name: string; reward?: string; benefit?: string; benefitTitle: string; wins: boolean }) {
+  return (
+    <article className={`rule-card${wins ? " is-winner" : ""}`}>
+      <div className="rule-card-head">
+        <h2>{name}</h2>
+        {wins ? <span className="rule-card-badge">Лучше</span> : null}
+      </div>
+      <dl>
+        {reward ? <div><dt>Премия</dt><dd className="is-reward">{reward.replace("очк.", "очков")}</dd></div> : null}
+        {benefit ? <div><dt>{benefitTitle}</dt><dd className="is-benefit">{benefit}</dd></div> : null}
+      </dl>
+    </article>
+  );
+}
+
 export function ReaderSummary({ data, actions }: { data: ReaderData; actions?: ReactNode }) {
-  const brief = data.brief;
-  const a = ruleTitle(data.baseline ?? "Первое правило");
-  const b = ruleTitle(data.candidate ?? "Второе правило");
+  const main = data.metrics[0];
+  const reward = data.metrics.find((m) => m.key === "reward_total");
+  const benefit = main && main.key !== "reward_total" ? main : undefined;
   return (
     <>
       <VerdictBlock data={data} level="h1" />
-      {data.metrics.length ? (
-        <section className="duel" aria-label="Сравнение правил в цифрах">
-          <div className="duel-legend">
-            <span><i className="mark-a">А</i>{a}</span>
-            <span><i className="mark-b">Б</i>{b}</span>
-          </div>
-          {data.metrics.map((m) => {
-            const max = Math.max(m.baseline, m.candidate, 1);
-            const reward = m.key === "reward_total";
-            return (
-              <article className="duel-metric" key={m.key}>
-                <div className="duel-head">
-                  <h2>{reward ? "Начислено награды" : m.title}</h2>
-                  <span className={`duel-change is-${m.effect}`}>{m.change.replace("п.п.", "пунктов")}</span>
-                </div>
-                <div className="duel-row">
-                  <i className="mark-a" aria-hidden>А</i>
-                  <div className="duel-track"><div className="duel-bar is-a" style={{ width: `${Math.max(1.5, (m.baseline / max) * 100)}%` }} /></div>
-                  <strong>{m.baseline_text}</strong>
-                </div>
-                <div className="duel-row">
-                  <i className="mark-b" aria-hidden>Б</i>
-                  <div className="duel-track"><div className={`duel-bar ${reward ? "is-reward" : "is-benefit"}`} style={{ width: `${Math.max(1.5, (m.candidate / max) * 100)}%` }} /></div>
-                  <strong>{m.candidate_text}</strong>
-                </div>
-              </article>
-            );
-          })}
-        </section>
+      {benefit || reward ? (
+        <div className="rule-cards">
+          <Card name={ruleTitle(data.baseline ?? "Первое правило")} reward={reward?.baseline_text} benefit={benefit?.baseline_text} benefitTitle={benefit?.title ?? ""} wins={benefit?.effect === "worse"} />
+          <Card name={ruleTitle(data.candidate ?? "Второе правило")} reward={reward?.candidate_text} benefit={benefit?.candidate_text} benefitTitle={benefit?.title ?? ""} wins={benefit?.effect === "better"} />
+        </div>
       ) : null}
-      {brief?.next_step ? <p className="next-step"><strong>Что дальше.</strong> {plainText(brief.next_step)}</p> : null}
       {actions}
-      {data.limits.length ? (
-        <details className="advanced">
-          <summary>Насколько можно доверять выводу</summary>
-          {data.limits.map((s) => <p key={s} className="t-secondary">{s}</p>)}
-        </details>
-      ) : null}
     </>
   );
 }

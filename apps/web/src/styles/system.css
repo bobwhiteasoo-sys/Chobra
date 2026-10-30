@@ -335,3 +335,33 @@ details.advanced > .panel > h2:first-child { display: none; }
   .arena-page .arena-register small { display: none; }
   .arena-page .arena-register span { font-size: 13px; }
 }
+
+/* the answer in two cards */
+.verdict { padding: clamp(24px, 4vw, 44px); }
+.rule-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
+.rule-card { padding: 24px; border-radius: 28px; background: var(--color-bg-surface); }
+.rule-card.is-winner { box-shadow: inset 0 0 0 3px var(--color-accent-primary); }
+.rule-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; min-height: 52px; }
+.rule-card h2 { margin: 0; font-size: 18px; line-height: 25px; font-weight: 600; }
+.rule-card-badge { flex: none; padding: 4px 12px; border-radius: 999px; background: var(--color-accent-primary); color: var(--color-accent-ink); font-size: 14px; font-weight: 600; }
+.rule-card dl { margin: 16px 0 0; display: grid; gap: 14px; }
+.rule-card dt { color: var(--color-text-secondary); font-size: 15px; }
+.rule-card dd { margin: 0; font-family: var(--font-display); font-size: clamp(26px, 3.6vw, 40px); line-height: 1.15; font-weight: 700; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.rule-card dd.is-reward { color: var(--color-reward); }
+.rule-card dd.is-benefit { color: var(--color-benefit); }
+.result-actions { margin-top: 16px; }
+.result-actions .btn { min-height: 56px; padding: 14px 28px; }
+.loophole { grid-template-columns: minmax(0, 1fr) auto; }
+
+/* landing: one screen */
+.landing-mini { padding: 16px 0 32px; color: var(--color-text-muted); font-size: 14px; }
+.entry-wide { width: min(720px, 100%); }
+.entry h1 { margin-top: 20px; }
+.telegram-entry .stack { gap: 12px; }
+.running-title { margin-top: 12vh; }
+@media (max-width: 640px) {
+  .rule-cards { grid-template-columns: minmax(0, 1fr); }
+  .rule-card-head { min-height: 0; }
+  .rule-card dl { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .running-title { margin-top: 8vh; }
+}

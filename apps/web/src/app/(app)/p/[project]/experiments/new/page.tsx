@@ -3,7 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import AdvancedExperiment from "@/components/AdvancedExperiment";
-import { Steps } from "@/components/flow/Steps";
 import { Button, ErrorState, Loading, Notice } from "@/components/ui";
 import { api, errorMessage } from "@/lib/api";
 import { count, ruleTitle } from "@/lib/format";
@@ -70,9 +69,8 @@ export default function QuickExperiment() {
   const runs = picked.length * repeats;
   return (
     <section>
-      <Steps current={0} />
-      <h1 className="pick-title">Какие правила сравним?</h1>
-      <p className="lead">Участники попробуют заработать по каждому правилу в одинаковых условиях.</p>
+      <h1 className="pick-title">Какие правила сравнить?</h1>
+      <p className="lead">Отметьте два правила и нажмите кнопку.</p>
       <fieldset className="pick-list">
         <legend className="sr-only">Правила для сравнения</legend>
         {published.map((r) => {
@@ -89,7 +87,21 @@ export default function QuickExperiment() {
           );
         })}
       </fieldset>
-      <section className="who" aria-labelledby="who-title">
+      {error ? <Notice tone="danger">{error}</Notice> : null}
+      {estimate.error ? <Notice tone="danger">{errorMessage(estimate.error)}</Notice> : null}
+      <div className="launch-bar">
+        <div>
+          <strong>{picked.length ? `${count(runs, "прогон", "прогона", "прогонов")}, бесплатно` : "Выберите хотя бы одно правило"}</strong>
+          <span>Займёт несколько секунд</span>
+        </div>
+        <Button variant="primary" className="btn-big" busy={busy} disabled={!picked.length || !estimate.data || estimate.isFetching || repeats < 1 || repeats > 20} onClick={() => void start()}>
+          Проверить правила
+        </Button>
+      </div>
+      <details className="advanced" style={{ marginTop: 16 }}>
+        <summary>Ещё настройки</summary>
+        <div className="stack">
+          <section className="who" aria-labelledby="who-title">
         <h2 id="who-title">Как ведут себя участники</h2>
         <div className="who-options" role="group" aria-labelledby="who-title">
           {WHO.map((w) => (
@@ -100,20 +112,6 @@ export default function QuickExperiment() {
           ))}
         </div>
       </section>
-      {error ? <Notice tone="danger">{error}</Notice> : null}
-      {estimate.error ? <Notice tone="danger">{errorMessage(estimate.error)}</Notice> : null}
-      <div className="launch-bar">
-        <div>
-          <strong>{picked.length ? `${count(runs, "прогон", "прогона", "прогонов")}, бесплатно` : "Выберите хотя бы одно правило"}</strong>
-          <span>Без ИИ и ключей. Займёт несколько секунд.</span>
-        </div>
-        <Button variant="primary" className="btn-big" busy={busy} disabled={!picked.length || !estimate.data || estimate.isFetching || repeats < 1 || repeats > 20} onClick={() => void start()}>
-          Проверить правила
-        </Button>
-      </div>
-      <details className="advanced" style={{ marginTop: 16 }}>
-        <summary>Ещё настройки</summary>
-        <div className="stack">
           <label className="field" style={{ maxWidth: 220 }}>
             <span className="label">Повторов на правило</span>
             <input className="input" type="number" min={1} max={20} value={repeats} onChange={(e) => setRepeats(Number(e.target.value))} />

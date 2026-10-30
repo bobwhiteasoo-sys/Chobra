@@ -10,7 +10,7 @@ test("UI contract: login → experiment → arena → finding → comparison →
   await page.getByRole("button", { name: "Войти в тестовый аккаунт", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Что проверим?", exact: true })).toBeVisible();
   await page.goto("/experiments/batch-control");
-  await expect(page.getByRole("heading", { name: "Контрольная серия" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   await page.goto("/runs/SD-P1-101/live");
   await expect(page.getByRole("region", { name: "Арена подтвержденных событий" })).toBeVisible();
   await expect(page.getByText("Начисленная награда", { exact: true })).toBeVisible();
@@ -19,10 +19,12 @@ test("UI contract: login → experiment → arena → finding → comparison →
   await page.getByRole("button", { name: "Следующее нарушение", exact: true }).click();
   await expect(page.getByRole("complementary", { name: "Инспектор" })).toContainText("Нарушение");
   await page.goto(`/findings/${fixture.findings[0].id}`);
+  await page.getByText("Подробности", { exact: true }).click();
   await page.getByText("Нарушенное свойство", { exact: true }).first().click();
   await expect(page.getByText("Порог", { exact: false }).first()).toBeVisible();
   await page.goto("/comparisons/comparison-control");
   await expect(page.getByRole("heading", { name: "Итог проверки", exact: true })).toBeVisible();
+  await page.getByText("Подробности и отчёт",{exact:true}).click();
   await page.getByText("Подробная статистика и методика",{exact:true}).click();
   await expect(page.getByText(/Bootstrap 95/).first()).toBeVisible();
   await page.getByLabel("Формат отчета").selectOption("markdown");

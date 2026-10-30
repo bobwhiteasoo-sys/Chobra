@@ -6,11 +6,10 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
-import { Steps } from "@/components/flow/Steps";
 import { useAnnounceWorkspace } from "@/components/Shell";
 import { Button, ButtonLink, ErrorState, Loading, Notice, useToast } from "@/components/ui";
 import { api, errorMessage } from "@/lib/api";
-import { count, ruleTitle } from "@/lib/format";
+import { ruleTitle } from "@/lib/format";
 import { isActive, useBatch, useProject } from "@/lib/queries";
 import type { Run } from "@/lib/types";
 
@@ -75,20 +74,16 @@ export default function BatchPage() {
       <Link className="back-link" href={`/p/${b.project_id}`}>
         <ArrowLeft size={16} aria-hidden /> {project.data?.name ?? "К проекту"}
       </Link>
-      <Steps current={comparisonId ? 2 : 1} />
-      <h1 className="running-title">{b.title}</h1>
+      <h1 className="running-title">{comparisonId ? "Готово" : b.status === "canceled" ? "Проверка остановлена" : "Проверяем…"}</h1>
       <p className="lead" role="status">
-        {active ? "Участники пробуют заработать по вашим правилам. Можно подождать здесь: итог откроется сам." : comparisonId ? "Проверка закончена, итог готов." : finished < b.counts.planned ? "Прогоны стоят в очереди." : "Считаем итог."}
+        {comparisonId ? "Ответ готов." : active ? "Ответ откроется сам. Ничего нажимать не нужно." : "Считаем ответ."}
       </p>
       <div className="running-meter" role="progressbar" aria-label="Завершено прогонов" aria-valuemin={0} aria-valuemax={b.counts.planned} aria-valuenow={finished}>
         <span style={{ width: `${percent}%` }} />
       </div>
-      <p className="t-caption num" style={{ margin: 0 }}>
-        {finished} из {count(b.counts.planned, "прогона", "прогонов", "прогонов")}
-        {b.counts.incomplete ? `, не завершено: ${b.counts.incomplete}` : ""}
-      </p>
+      {b.counts.incomplete ? <p className="t-caption" style={{ margin: 0 }}>Не завершено: {b.counts.incomplete}</p> : null}
       <div className="result-actions">
-        {comparisonId ? <ButtonLink variant="primary" href={`/comparisons/${comparisonId}`}>Открыть итог</ButtonLink> : null}
+        {comparisonId ? <ButtonLink variant="primary" href={`/comparisons/${comparisonId}`}>Открыть ответ</ButtonLink> : null}
         {active && canRun ? <Button variant="danger" busy={canceling} onClick={cancel}>Остановить</Button> : null}
       </div>
       {b.status === "completed_with_incomplete" ? <Notice tone="warn">Часть прогонов не завершилась. В итог вошли только полные пары.</Notice> : null}
@@ -98,7 +93,9 @@ export default function BatchPage() {
           {b.budget_used.unknown_usage_calls ? ` С неизвестным расходом: ${b.budget_used.unknown_usage_calls}.` : ""}
         </p>
       ) : null}
-      <div className="lanes">
+      <details className="advanced" style={{ marginTop: 32 }}>
+      <summary>Подробнее о прогонах</summary>
+      <div className="lanes" style={{ marginTop: 8 }}>
         {variants.map((v) => (
           <section className="lane" key={v.label}>
             <h2>{ruleTitle(v.label)}</h2>
@@ -113,6 +110,7 @@ export default function BatchPage() {
         <span><Check size={14} aria-hidden /> лазеек нет</span>
         <span>Нажмите на прогон, чтобы посмотреть, что в нём случилось</span>
       </p>
+      </details>
     </>
   );
 }

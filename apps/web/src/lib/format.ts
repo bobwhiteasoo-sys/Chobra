@@ -103,6 +103,7 @@ export function ruleTitle(name: string): string {
 export function plainText(text: string): string {
   return text
     .replace(/\b(?:issue|task)_0*(\d+(?:_\d+)*)/g, (_, id: string) => `№${id.replace(/_/g, ".")}`)
+    .replace(/\bagent_0*(\d+)/g, "участник $1")
     .replace(/[A-Z]+-P\d+\s+/g, "")
     .replace(/(?<![а-яё])тик(ов|а|и|ам|ах|е|у)?(?![а-яё])/gi, "шаг$1");
 }
