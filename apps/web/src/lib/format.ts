@@ -87,3 +87,22 @@ export const REPLAY_STATUS: Record<string, string> = {
   replay_failed: "Воспроизведение не совпало",
   replay_unavailable: "Воспроизведение недоступно",
 };
+
+export const SITUATIONS = [
+  { id: "supportdesk", title: "Поддержка клиентов", text: "Платим за закрытые обращения. Но проблемы клиентов правда решаются?" },
+  { id: "taskboard", title: "Работа команды", text: "Платим за задачи «готово». Но результат проходит проверку?" },
+  { id: "resourcecommons", title: "Общий ресурс", text: "Награждаем за использование. Но запас не закончится?" },
+] as const;
+
+/** Rule names carry a template code (SD-P1) that means nothing to a reader. */
+export function ruleTitle(name: string): string {
+  return name.replace(/^[A-Z]+-P\d+\s+/, "");
+}
+
+/** Engine vocabulary in findings and summaries, translated for a person. */
+export function plainText(text: string): string {
+  return text
+    .replace(/\b(?:issue|task)_0*(\d+(?:_\d+)*)/g, (_, id: string) => `№${id.replace(/_/g, ".")}`)
+    .replace(/[A-Z]+-P\d+\s+/g, "")
+    .replace(/(?<![а-яё])тик(ов|а|и|ам|ах|е|у)?(?![а-яё])/gi, "шаг$1");
+}

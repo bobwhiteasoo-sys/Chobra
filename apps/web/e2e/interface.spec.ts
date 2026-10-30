@@ -8,7 +8,7 @@ test("UI contract: login → experiment → arena → finding → comparison →
   await page.getByLabel("Имя", { exact: true }).fill("Исследователь");
   await page.getByLabel("Почта", { exact: true }).fill("test@example.test");
   await page.getByRole("button", { name: "Войти в тестовый аккаунт", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Проекты", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Что проверим?", exact: true })).toBeVisible();
   await page.goto("/experiments/batch-control");
   await expect(page.getByRole("heading", { name: "Контрольная серия" })).toBeVisible();
   await page.goto("/runs/SD-P1-101/live");
@@ -19,9 +19,10 @@ test("UI contract: login → experiment → arena → finding → comparison →
   await page.getByRole("button", { name: "Следующее нарушение", exact: true }).click();
   await expect(page.getByRole("complementary", { name: "Инспектор" })).toContainText("Нарушение");
   await page.goto(`/findings/${fixture.findings[0].id}`);
-  await expect(page.getByRole("heading", { name: "Нарушенное свойство", exact: true })).toBeVisible();
+  await page.getByText("Нарушенное свойство", { exact: true }).first().click();
+  await expect(page.getByText("Порог", { exact: false }).first()).toBeVisible();
   await page.goto("/comparisons/comparison-control");
-  await expect(page.getByRole("heading", { name: "Сравнение вариантов", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Итог проверки", exact: true })).toBeVisible();
   await page.getByText("Подробная статистика и методика",{exact:true}).click();
   await expect(page.getByText(/Bootstrap 95/).first()).toBeVisible();
   await page.getByLabel("Формат отчета").selectOption("markdown");
@@ -69,7 +70,7 @@ test("Replay speed and tick seek preserve projection, reduced motion retains con
     expect(await page.locator(".arena-registers").innerText()).toBe(value);
   }
   await expect(page.locator(".arena-scene")).toHaveClass(/arena-reduced/);
-  await expect(page.getByRole("button", { name: "Следующий шаг →", exact: true })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Следующий шаг", exact: true })).toBeEnabled();
   expect(state.requests.filter((r) => r.startsWith("POST"))).not.toContainEqual(expect.stringContaining("model"));
 });
 

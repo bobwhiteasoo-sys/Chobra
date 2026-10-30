@@ -1,184 +1,114 @@
 "use client";
 
-import * as Dialog from "@radix-ui/react-dialog";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus, Search } from "lucide-react";
+import { ArrowRight, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useDeferredValue, useState, type FormEvent } from "react";
+import { useDeferredValue, useState } from "react";
 
 import { useCurrentWorkspace } from "@/components/Shell";
-import { Button, EmptyState, ErrorState, Loading, Notice, Pill, RunStatus } from "@/components/ui";
+import { ErrorState, Loading, Notice } from "@/components/ui";
 import { api, errorMessage } from "@/lib/api";
-import { dateTime, ENV_LABELS } from "@/lib/format";
-import { useEnvironments, useProjects } from "@/lib/queries";
+import { dateTime, SITUATIONS } from "@/lib/format";
+import { isActive, useMe, useProjects } from "@/lib/queries";
 import type { Project } from "@/lib/types";
 
-export default function ProjectsPage() {
+function state(project: Project): { label: string; tone: string } {
+  const status = project.last_batch?.status;
+  if (!status) return { label: "Ещё не проверяли", tone: "" };
+  if (isActive(status)) return { label: "Идёт проверка", tone: "is-active" };
+  return { label: "Есть итог", tone: "is-done" };
+}
+
+export default function HomePage() {
   const { workspace } = useParams<{ workspace: string }>();
   const { workspaceId } = useCurrentWorkspace();
-  const [q, setQ] = useState("");
-  const [environment, setEnvironment] = useState("");
-  const [archived, setArchived] = useState(false);
-  const [mine, setMine] = useState(false);
-  const deferredQ = useDeferredValue(q);
-  const projects = useProjects(workspace ?? workspaceId ?? undefined, { q: deferredQ, environment, archived, owner: mine ? "me" : "" });
-  const filtered = Boolean(q || environment || archived || mine);
-
-  return (
-    <>
-      <header className="page-head">
-        <div>
-          <h1 className="t-page">Проекты</h1>
-          <p className="lead">Выберите проект или создайте новый, чтобы проверить правила награды.</p>
-        </div>
-        <NewProject workspaceId={workspace} />
-      </header>
-      <details className="advanced project-filters"><summary>Поиск и фильтры</summary><div className="row">
-        <div className="input-unit" style={{ minWidth: 260, flex: "1 1 260px", maxWidth: 420, position: "relative" }}>
-          <label htmlFor="q" className="sr-only">
-            Поиск по названию и тегам
-          </label>
-          <Search size={16} aria-hidden style={{ position: "absolute", left: 12, top: 14, color: "var(--color-text-muted)" }} />
-          <input id="q" className="input" style={{ paddingLeft: 36 }} placeholder="Поиск по названию и тегам" value={q} onChange={(e) => setQ(e.target.value)} />
-        </div>
-        <label className="sr-only" htmlFor="env">
-          Среда
-        </label>
-        <select id="env" className="select" style={{ width: 200 }} value={environment} onChange={(e) => setEnvironment(e.target.value)}>
-          <option value="">Все среды</option>
-          {Object.entries(ENV_LABELS).map(([k, v]) => (
-            <option key={k} value={k}>
-              {v}
-            </option>
-          ))}
-        </select>
-        <div className="segmented" role="group" aria-label="Фильтры">
-          <button type="button" aria-pressed={!archived} onClick={() => setArchived(false)}>
-            Активные
-          </button>
-          <button type="button" aria-pressed={archived} onClick={() => setArchived(true)}>
-            Архив
-          </button>
-          <button type="button" aria-pressed={mine} onClick={() => setMine(!mine)}>
-            Мои
-          </button>
-        </div>
-      </div>
-      </details>
-      {projects.isLoading ? (
-        <Loading lines={5} />
-      ) : projects.error ? (
-        <ErrorState error={projects.error} onRetry={() => projects.refetch()} />
-      ) : !projects.data?.items.length ? (
-        filtered ? (
-          <EmptyState title="Ничего не найдено">Измените поиск или фильтры.</EmptyState>
-        ) : (
-          <EmptyState title="Проектов пока нет">
-            Создайте проект из шаблона: в нем уже будут сценарий, три стартовых правила и профили агентов.
-          </EmptyState>
-        )
-      ) : (
-        <div className="project-list">{projects.data.items.map(p=><Link className="project-list-item" href={`/p/${p.id}`} key={p.id}><div><strong>{p.name}</strong><p>{({supportdesk:"Поддержка клиентов",taskboard:"Работа команды",resourcecommons:"Общий ресурс"} as Record<string,string>)[p.environment_id]??p.environment_id}</p></div><div className="row">{p.last_batch?<RunStatus status={p.last_batch.status}/>:<span className="t-caption">Готов к первой проверке</span>}<span className="project-open">Открыть</span></div></Link>)}</div>
-      )}
-    </>
-  );
-}
-
-function ProjectRow({ project }: { project: Project }) {
-  const router = useRouter();
-  return (
-    <tr data-link onClick={() => router.push(`/p/${project.id}`)}>
-      <td style={{ maxWidth: 420 }}>
-        <Link href={`/p/${project.id}`} style={{ fontWeight: 600 }} className="clamp-2" onClick={(e) => e.stopPropagation()}>
-          {project.name}
-        </Link>
-        <div className="row" style={{ gap: 6, marginTop: 4 }}>
-          {project.is_demo ? <Pill>Учебный</Pill> : null}
-          {project.restricted ? <Pill>Ограниченный доступ</Pill> : null}
-          {project.tags.map((t) => (
-            <Pill key={t}>{t}</Pill>
-          ))}
-        </div>
-      </td>
-      <td>{ENV_LABELS[project.environment_id] ?? project.environment_id}</td>
-      <td>{project.last_batch ? <RunStatus status={project.last_batch.status} /> : <span className="t-muted">Испытаний не было</span>}</td>
-      <td className="t-secondary num">{dateTime(project.updated_at)}</td>
-    </tr>
-  );
-}
-
-function NewProject({ workspaceId }: { workspaceId: string | undefined }) {
-  const envs = useEnvironments();
+  const id = workspace ?? workspaceId ?? undefined;
+  const me = useMe();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const [open, setOpen] = useState(false);
-  const [name, setName] = useState("");
-  const [env, setEnv] = useState("supportdesk");
+  const [q, setQ] = useState("");
+  const [archived, setArchived] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const submit = async (event: FormEvent) => {
-    event.preventDefault();
-    setBusy(true);
+  const projects = useProjects(id, { q: useDeferredValue(q), archived });
+  const role = me.data?.workspaces.find((w) => w.id === id)?.role;
+  const canCreate = role !== "viewer";
+
+  const start = async (situation: (typeof SITUATIONS)[number]) => {
+    setBusy(situation.id);
     setError(null);
     try {
-      const project = await api<Project>("/projects", { body: { workspace_id: workspaceId, name, environment_id: env } });
+      const project = await api<Project>("/projects", { body: { workspace_id: id, name: situation.title, environment_id: situation.id } });
       await queryClient.invalidateQueries({ queryKey: ["projects"] });
-      router.push(`/p/${project.id}`);
+      router.push(`/p/${project.id}/experiments/new`);
     } catch (err) {
       setError(errorMessage(err));
-      setBusy(false);
+      setBusy(null);
     }
   };
+
+  const items = projects.data?.items ?? [];
   return (
-    <Dialog.Root open={open} onOpenChange={setOpen}>
-      <Dialog.Trigger asChild>
-        <Button variant="primary">
-          <Plus size={18} aria-hidden /> Новый проект
-        </Button>
-      </Dialog.Trigger>
-      <Dialog.Portal>
-        <Dialog.Overlay className="overlay" />
-        <Dialog.Content className="dialog">
-          <Dialog.Title className="t-section">Новый проект</Dialog.Title>
-          <Dialog.Description className="t-secondary" style={{ margin: "6px 0 20px" }}>
-            Выберите ситуацию и назовите проект. Участники, задачи и стартовые правила появятся автоматически.
-          </Dialog.Description>
-          <form onSubmit={submit} className="stack">
-            <div className="field">
-              <label htmlFor="pname">Название</label>
-              <input id="pname" className="input" value={name} onChange={(e) => setName(e.target.value)} required maxLength={200} />
+    <>
+      <h1 className="home-title">Что проверим?</h1>
+      <p className="lead">Выберите ситуацию. Участники, задачи и правила уже готовы: останется нажать одну кнопку.</p>
+      {error ? <Notice tone="danger">{error}</Notice> : null}
+      {canCreate ? (
+        <ul className="situations">
+          {SITUATIONS.map((s) => (
+            <li key={s.id}>
+              <button type="button" className="situation" aria-busy={busy === s.id} disabled={Boolean(busy)} onClick={() => void start(s)}>
+                <span>
+                  <span className="situation-title">{s.title}</span>
+                  <span className="situation-text">{s.text}</span>
+                </span>
+                <span className="situation-go" aria-hidden>
+                  {busy === s.id ? <Loader2 size={22} className="spin" /> : <ArrowRight size={22} />}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
+      {projects.isLoading ? <Loading lines={3} /> : projects.error ? <ErrorState error={projects.error} onRetry={() => projects.refetch()} /> : items.length || q || archived ? (
+        <section aria-labelledby="history-title">
+          <div className="history-head">
+            <h2 className="t-section" id="history-title">{archived ? "Архив" : "Ваши проверки"}</h2>
+            <div className="row" style={{ gap: 8 }}>
+              {items.length > 5 || q ? (
+                <>
+                  <label className="sr-only" htmlFor="q">Поиск проверок</label>
+                  <input id="q" className="input" style={{ width: 220 }} placeholder="Найти" value={q} onChange={(e) => setQ(e.target.value)} />
+                </>
+              ) : null}
+              <button type="button" className="quiet-link" onClick={() => setArchived(!archived)}>{archived ? "Активные" : "Архив"}</button>
             </div>
-            <fieldset className="stack" style={{ border: 0, padding: 0, margin: 0 }}>
-              <legend className="field label" style={{ marginBottom: 6 }}>
-                Что будем проверять
-              </legend>
-              {envs.data?.items.map((e) => (
-                <label key={e.name} className="check" style={{ alignItems: "flex-start" }}>
-                  <input type="radio" name="env" value={e.name} checked={env === e.name} onChange={() => setEnv(e.name)} />
-                  <span>
-                    <strong>{({supportdesk:"Поддержка клиентов",taskboard:"Работа команды",resourcecommons:"Общий ресурс"} as Record<string,string>)[e.name] ?? e.template.title}</strong>
-                    <span className="t-caption" style={{ display: "block" }}>
-                      {e.template.problem}
+          </div>
+          {items.length ? (
+            <div className="history-list">
+              {items.map((p) => {
+                const s = state(p);
+                return (
+                  <Link className="history-row" href={`/p/${p.id}`} key={p.id}>
+                    <span style={{ minWidth: 0 }}>
+                      <strong className="clamp-2">{p.name}</strong>
+                      <span className="t-caption">{dateTime(p.updated_at)}</span>
                     </span>
-                  </span>
-                </label>
-              ))}
-            </fieldset>
-            {error ? <Notice tone="danger">{error}</Notice> : null}
-            <div className="row" style={{ justifyContent: "flex-end" }}>
-              <Dialog.Close asChild>
-                <Button variant="ghost" type="button">
-                  Отмена
-                </Button>
-              </Dialog.Close>
-              <Button variant="primary" type="submit" busy={busy}>
-                Создать проект
-              </Button>
+                    <span className="history-state">
+                      <i className={`history-dot ${s.tone}`} aria-hidden />
+                      {s.label}
+                    </span>
+                  </Link>
+                );
+              })}
             </div>
-          </form>
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+          ) : (
+            <p className="t-secondary">{q ? "Ничего не нашлось. Попробуйте другое слово." : "Здесь пусто."}</p>
+          )}
+        </section>
+      ) : null}
+    </>
   );
 }

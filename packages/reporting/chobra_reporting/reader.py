@@ -49,16 +49,53 @@ def overview(pair, environment='supportdesk'):
     if incomplete: limits.append(f'Не завершено запусков: {incomplete}. Они не считаются успешной проверкой.')
     if pairs<10: limits.append('Это небольшая проверка. Для статистического интервала нужны минимум 10 полных пар.')
     limits.append('Вывод относится к этой симуляции, а не к поведению реальных людей.')
-    return {'title':title,'description':'Сравните полезную работу и награду: высокая выплата сама по себе не означает хороший результат.','baseline':pair.get('baseline','Первое правило'),'candidate':pair.get('candidate','Второе правило'),'metrics':metrics,'pairs':pairs,'limits':limits,'next_step':'Проверьте новое правило на других исходных условиях. Посмотрите, какие нарушения остались.' if improved else 'Измените условие награды и повторите проверку. Начните с найденных нарушений.'}
+    from chobra_audit.catalog import available_checks
+    labels={c['check_id']:c['title'] for c in available_checks(environment)}
+    candidate_checks=pair.get('violations',{}).get(pair.get('candidate'),{})
+    remaining=[labels.get(key,key) for key,row in candidate_checks.items() if row.get('failed',0)>0]
+    applicable=any(row.get('applicable',0)>0 for row in candidate_checks.values())
+    concern=('Остались нарушения: '+ '; '.join(remaining[:2])+'.' if remaining else
+             'В применимых проверках нарушений не найдено. Это не гарантия отсутствия лазеек.' if applicable else
+             'Проверок недостаточно, чтобы оценить оставшиеся нарушения.')
+    if incomplete: concern=f'Не завершено запусков: {incomplete}. '+concern
+    primary=metrics[0] if metrics else None
+    conclusion='Данных пока недостаточно для вывода.'
+    if pairs and primary:
+        conclusion=('Новое правило дало больше пользы.' if primary['effect']=='better' else
+                    'Новое правило дало меньше пользы.' if primary['effect']=='worse' else
+                    'Основной результат не изменился.')
+        if improved and worsened: conclusion='Есть улучшения, но есть и потери.'
+        if pair.get('pairing',{}).get('tapes_match') is not True:
+            conclusion='Сопоставимость условий не подтверждена.'
+    if not pairs:
+        concern='Нет завершённых сопоставимых запусков. Делать вывод о правиле рано.'
+    next_step=('Доработайте оставшиеся нарушения и повторите проверку.' if remaining else
+               'Проверьте правило на других исходных условиях.' if pairs else
+               'Откройте запуски и проверьте, почему они не завершились.')
+    short={
+        'heading':'Краткая сводка Chobra',
+        'context':f'Сопоставимых запусков: {pairs * (1 if pair.get("baseline")==pair.get("candidate") else 2)}',
+        'conclusion':conclusion,
+        'tested':f'«{pair.get("baseline","Первое правило")}» и «{pair.get("candidate","Второе правило")}»',
+        'outcome':f'{primary["title"]}: {primary["baseline_text"]} → {primary["candidate_text"]}.' if primary else 'Полезный результат пока не рассчитан.',
+        'concern':concern,
+        'next_step':next_step,
+    }
+    return {'title':title,'description':'Сравните полезную работу и награду: высокая выплата сама по себе не означает хороший результат.','baseline':pair.get('baseline','Первое правило'),'candidate':pair.get('candidate','Второе правило'),'metrics':metrics,'pairs':pairs,'limits':limits,'next_step':next_step,'brief':short}
 
 
 def telegram_report(summary, project_name):
     import html
     esc=lambda x:html.escape(str(x))
-    lines=[f'<b>Отчёт Chobra</b>',esc(project_name),'',f'<b>{esc(summary["title"])}</b>','']
-    if summary.get('metrics'):
-        lines.extend([f'<b>А</b> · {esc(summary["baseline"])}',f'<b>Б</b> · {esc(summary["candidate"])}',''])
-        for m in summary['metrics']:
-            lines.extend([f'<b>{esc(m["title"])}</b>',f'А: {esc(m["baseline_text"])} → Б: {esc(m["candidate_text"])}',esc(m['change']),''])
-    lines.extend(['<b>Что делать дальше</b>',esc(summary['next_step']),'','<b>Как читать эти цифры</b>',*[esc(s) for s in summary['limits']]])
+    brief=summary.get('brief')
+    if brief:
+        lines=[f'<b>{esc(brief["heading"])}</b>',esc(project_name),esc(brief['context']),'',
+               f'<b>{esc(brief["conclusion"])}</b>','',
+               '<b>Что проверили</b>',esc(brief['tested']),'',
+               '<b>Что получилось</b>',esc(brief['outcome']),'',
+               '<b>На что обратить внимание</b>',esc(brief['concern']),'',
+               '<b>Следующий шаг</b>',esc(brief['next_step']),'',
+               'Вывод относится к этой симуляции. Подробные цифры — на сайте.']
+    else:
+        lines=['<b>Краткая сводка Chobra</b>',esc(project_name),'',esc(summary['title']),'',esc(summary['next_step'])]
     return '\n'.join(lines)

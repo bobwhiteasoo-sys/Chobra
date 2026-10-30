@@ -14,7 +14,7 @@ test("real API: sign in, create series, inspect finding, compare and export", as
   await page.getByRole("button", { name: "Создать пример", exact: true }).click();
   await expect(page).toHaveURL(/\/experiments\/new/);
   const helpPopup = page.waitForEvent("popup");
-  await page.locator(".topnav").getByRole("link", { name: "Инструкция", exact: true }).click();
+  await page.locator(".topbar").getByRole("link", { name: "Помощь", exact: true }).click();
   const help = await helpPopup;
   await expect(help).toHaveURL(/\/help$/);
   await expect(page).toHaveURL(/\/experiments\/new/);
@@ -32,12 +32,11 @@ test("real API: sign in, create series, inspect finding, compare and export", as
   await page.goto(`/runs/${run.id}/live`);
   await page.getByRole("button", { name: "Разобрать доказательства", exact: true }).click();
   await page.getByRole("link", { name: "Открыть карточку нарушения", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Нарушенное свойство", exact: true })).toBeVisible();
+  await page.getByText("Проверка воспроизведения", { exact: true }).first().click();
   await page.getByRole("button", { name: "Проверить replay", exact: true }).click();
   await expect(page.locator(".metric").filter({hasText:"Вызовы модели"})).toContainText("0");
   await page.getByRole("link", { name: "Перейти к сравнению", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Сравнение вариантов", exact: true })).toBeVisible();
-  await expect(page.getByLabel("Краткий итог проверки")).toBeVisible();
+    await expect(page.getByLabel("Краткий итог проверки")).toBeVisible();
   if(process.env.CHOBRA_SUMMARY_SHOT) await page.screenshot({path:process.env.CHOBRA_SUMMARY_SHOT});
   await page.getByLabel("Формат отчета").selectOption("markdown");
   await page.getByRole("button", { name: "Создать отчет", exact: true }).click();

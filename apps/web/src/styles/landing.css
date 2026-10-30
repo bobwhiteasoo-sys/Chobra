@@ -27,3 +27,15 @@
 .footer-note{font-size:12px;line-height:1.65;color:#a6a0b5;margin:22px 0 0;max-width:660px}
 @media(max-width:900px){.landing-close{padding:32px;gap:28px}.closing-action .landing-cta{min-width:190px}.footer-main{gap:20px}.footer-description{max-width:190px}.footer-main nav{margin-left:auto;gap:16px}}
 @media(max-width:600px){.landing-close{grid-template-columns:minmax(0,1fr);padding:28px 24px;gap:26px;margin:12px 0 28px;border-radius:16px}.landing-close h2{font-size:clamp(25px,6.7vw,34px);line-height:1.16;margin-bottom:16px}.landing-close .closing-copy p{font-size:14px}.closing-break{display:none}.closing-action{align-items:stretch;gap:12px}.closing-action .landing-cta{width:100%;min-width:0;padding-inline:18px}.footer-main{display:grid;grid-template-columns:minmax(0,1fr);gap:12px}.footer-description{max-width:none}.footer-main nav{margin:8px 0 0;gap:24px}.footer-note{font-size:11px;margin-top:22px}.landing-footer{padding-bottom:24px}}
+
+/* Chunky hero: type carries the voice, the example carries the proof. */
+.landing h1,.landing h2{font-family:var(--font-display);font-weight:700;letter-spacing:-.04em}
+.landing h1{font-size:clamp(30px,4vw,56px);line-height:1.08}
+.landing h2{font-size:clamp(26px,3.2vw,44px);line-height:1.12}
+.landing-how h3{font-family:var(--font-display);font-weight:600;letter-spacing:-.02em;font-size:20px}
+.landing-cta{min-height:60px;padding:16px 30px;font-weight:600;font-size:17px;box-shadow:0 14px 34px -12px rgba(255,212,71,.6)}
+.hero-lab{border-radius:36px;background:var(--color-bg-surface)}
+.hero-lab h2{font-size:clamp(20px,2.2vw,28px)}
+.landing-close{background:#ffd447;color:#17120a;border-radius:36px;padding:clamp(32px,5vw,64px)}
+.landing-close p,.landing-close span{color:#4a3d12}
+.landing-close .landing-cta{background:#17120a;color:#ffd447;box-shadow:none}

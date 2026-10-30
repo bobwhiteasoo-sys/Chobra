@@ -2,7 +2,7 @@
 
 import * as Dropdown from "@radix-ui/react-dropdown-menu";
 import { useQueryClient } from "@tanstack/react-query";
-import { BookOpen, ChevronsUpDown, FileText, FlaskConical, FolderKanban, LogOut, Plus, Settings, UserRound } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useParams, usePathname, useRouter } from "next/navigation";
@@ -84,19 +84,6 @@ export function Shell({ children }: { children: ReactNode }) {
   }
 
   const workspace = me.data.workspaces.find((w) => w.id === workspaceId) ?? me.data.workspaces[0]!;
-  const links = [
-    { href: `/w/${workspace.id}/projects`, label: "Проекты", icon: FolderKanban, match: ["/w/", "/p/"] },
-    { href: `/w/${workspace.id}/templates`, label: "Шаблоны", icon: BookOpen, match: ["/templates"] },
-    { href: `/w/${workspace.id}/runs`, label: "Испытания", icon: FlaskConical, match: ["/runs", "/experiments", "/findings", "/comparisons"] },
-    { href: `/w/${workspace.id}/reports`, label: "Отчеты", icon: FileText, match: ["/reports"] },
-    { href: "/settings/workspace", label: "Настройки", icon: Settings, match: ["/settings"] },
-  ];
-  const active = (link: (typeof links)[number]) => {
-    if (pathname === link.href) return true;
-    if (link.label === "Проекты") return (pathname.startsWith("/w/") && pathname.endsWith("/projects")) || pathname.startsWith("/p/");
-    return link.match.some((m) => pathname.includes(m)) && !(link.label !== "Проекты" && pathname.endsWith("/projects"));
-  };
-
   const logout = async () => {
     await api("/auth/logout", { body: {} });
     queryClient.clear();
@@ -107,26 +94,25 @@ export function Shell({ children }: { children: ReactNode }) {
     <WorkspaceContext.Provider value={context}>
       <div className="simple-shell">
         <header className="topbar">
-          <Link href={`/w/${workspace.id}/projects`} className="brand" aria-label="Chobra, к проектам">
+          <Link href={`/w/${workspace.id}/projects`} className="brand" aria-label="Chobra, на главный экран">
             <Image src="/brand/chobra-mark-transparent.png" alt="" width={30} height={29} priority /><span>Chobra</span>
           </Link>
-          <nav className="topnav" aria-label="Основная навигация">
-            {[links[0]!, links[2]!, links[3]!].map(link=><Link key={link.href} href={link.href} aria-current={active(link)?"page":undefined}>{link.label}</Link>)}
-            <Link href="/help" target="_blank" rel="noopener noreferrer">Инструкция</Link>
-          </nav>
-          <Dropdown.Root><Dropdown.Trigger asChild><button className="account-button" aria-label="Аккаунт и настройки">{me.data.display_name}<ChevronsUpDown size={14}/></button></Dropdown.Trigger>
-            <Dropdown.Portal><Dropdown.Content className="menu" align="end" sideOffset={10}>
-              {me.data.workspaces.map(w=><Dropdown.Item className="menu-item" key={w.id} onSelect={()=>{context.setWorkspaceId(w.id);router.push(`/w/${w.id}/projects`);}}>{w.name}</Dropdown.Item>)}
-              <Dropdown.Separator className="divider"/>
-              <Dropdown.Item className="menu-item" onSelect={()=>router.push("/settings/workspace")}>Настройки</Dropdown.Item>
-              <Dropdown.Item className="menu-item" onSelect={()=>router.push("/settings/profile")}>Мой аккаунт</Dropdown.Item>
-              <Dropdown.Item className="menu-item" onSelect={()=>router.push("/onboarding?new=1")}>Новое пространство</Dropdown.Item>
-              <Dropdown.Item className="menu-item" onSelect={()=>void logout()}>Выйти</Dropdown.Item>
-            </Dropdown.Content></Dropdown.Portal>
-          </Dropdown.Root>
+          <div className="topbar-right">
+            <Link className="topbar-link" href="/help" target="_blank" rel="noopener noreferrer">Помощь</Link>
+            <Dropdown.Root><Dropdown.Trigger asChild><button className="account-button" aria-label="Аккаунт и настройки"><span className="account-avatar" aria-hidden>{me.data.display_name.trim().charAt(0).toUpperCase()}</span><span className="account-name">{me.data.display_name}</span><ChevronDown size={14} aria-hidden/></button></Dropdown.Trigger>
+              <Dropdown.Portal><Dropdown.Content className="menu" align="end" sideOffset={10}>
+                <Dropdown.Item className="menu-item" onSelect={()=>router.push(`/w/${workspace.id}/runs`)}>Все запуски</Dropdown.Item>
+                <Dropdown.Item className="menu-item" onSelect={()=>router.push(`/w/${workspace.id}/reports`)}>Отчёты</Dropdown.Item>
+                <Dropdown.Item className="menu-item" onSelect={()=>router.push("/settings/workspace")}>Настройки</Dropdown.Item>
+                <Dropdown.Separator className="divider"/>
+                {me.data.workspaces.length>1?<>{me.data.workspaces.map(w=><Dropdown.Item className="menu-item" key={w.id} onSelect={()=>{context.setWorkspaceId(w.id);router.push(`/w/${w.id}/projects`);}}>{w.name}</Dropdown.Item>)}<Dropdown.Separator className="divider"/></>:null}
+                <Dropdown.Item className="menu-item" onSelect={()=>router.push("/onboarding?new=1")}>Новое пространство</Dropdown.Item>
+                <Dropdown.Item className="menu-item" onSelect={()=>void logout()}>Выйти</Dropdown.Item>
+              </Dropdown.Content></Dropdown.Portal>
+            </Dropdown.Root>
+          </div>
         </header>
         <main className="simple-main" id="main">{children}</main>
-        <footer className="app-footer">Chobra · Проверка правил в симуляции <Link href="/help" target="_blank" rel="noopener noreferrer">Инструкция</Link></footer>
       </div>
     </WorkspaceContext.Provider>
   );

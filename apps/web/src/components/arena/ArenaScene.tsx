@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { AGENT_STATUS, EVENT_LABELS, actionLabel, actorName, itemNumber } from "@/lib/arena/labels";
-import { ENV_LABELS, MODE_LABELS } from "@/lib/format";
+import { ENV_LABELS } from "@/lib/format";
 import type { Projection } from "@/lib/arena/projection";
 import "@/styles/arena.css";
 
@@ -14,8 +14,6 @@ export type ArenaSceneProps = {
 };
 type Point = { x: number; y: number };
 const ITEM_STATUS: Record<string, string> = { open: "Открыто", closed: "Закрыто", split: "Разделено", escalated: "Передано", todo: "К выполнению", in_progress: "В работе", accepted: "Принято" };
-const CONFIRMATION: Record<string, string> = { pending: "ожидается", confirmed: "получено", rejected: "отклонено", unobserved: "не наблюдалось" };
-const COMPLEXITY: Record<string, string> = { easy: "простая", medium: "средняя", hard: "сложная" };
 function curve(from: Point, to: Point) {
   const bend = Math.max(35, Math.abs(to.y - from.y) * .55);
   return `M${from.x},${from.y} C${from.x + bend},${from.y + bend} ${to.x - bend},${to.y - bend} ${to.x},${to.y}`;
@@ -78,21 +76,21 @@ export function ArenaScene({ projection: s, ruleName, selection, onSelect, froze
         </g>;
       })}
     </svg>
-    <button data-arena-node="rule" className={`arena-rule arena-node ${selection?.kind === "rule" ? "selected" : ""}${chain("rule")}`} onClick={() => onSelect?.({ kind: "rule" })}><span className="arena-eyebrow">Действующее правило</span><strong>{ruleName || "Правило запуска"}</strong><small>{s.ruleTrigger ? EVENT_LABELS[s.ruleTrigger] ?? s.ruleTrigger : "Ожидаем инициализации мира"}</small></button>
-    <div className="arena-section-label">Участники <span>{s.agentOrder.length}</span></div>
+    <button data-arena-node="rule" className={`arena-rule arena-node ${selection?.kind === "rule" ? "selected" : ""}${chain("rule")}`} onClick={() => onSelect?.({ kind: "rule" })}><span className="arena-eyebrow">Правило</span><strong>{ruleName || "Правило запуска"}</strong><small>Платим за: {s.ruleTrigger ? (EVENT_LABELS[s.ruleTrigger] ?? s.ruleTrigger).toLowerCase() : "ожидаем начало"}</small></button>
+    
     <div className="arena-agents">{agents.map(id => {
       const i = s.agentOrder.indexOf(id), a = s.agents[id]!;
       const elapsed = a.since && now ? Math.max(0, Math.floor((now - Date.parse(a.since)) / 1000)) : null;
-      return <button data-arena-node={id} key={id} className={`arena-node arena-agent ${selected("agent", id) ? "selected" : ""}${chain(id)}`} onClick={() => onSelect?.({ kind: "agent", id })}><span className={`arena-avatar profile-${i % 3}`}>{String(i + 1).padStart(2, "0")}</span><strong>{actorName(id, s.agentOrder)}</strong><small>{a.kind === "model" ? "Модель" : "Сценарий"} · {MODE_LABELS[a.mode] ?? a.mode}</small><span className={`arena-agent-state state-${a.status}`}>{a.status === "choosing" && frozen ? "Ожидание · обновление на паузе" : AGENT_STATUS[a.status]}{a.status === "choosing" && !frozen && elapsed !== null ? ` · ${elapsed} с` : ""}</span>{a.lastAction && <small>{actionLabel(a.lastAction)}</small>}</button>;
+      return <button data-arena-node={id} key={id} className={`arena-node arena-agent ${selected("agent", id) ? "selected" : ""}${chain(id)}`} onClick={() => onSelect?.({ kind: "agent", id })}><span className={`arena-avatar profile-${i % 3}`}>{String(i + 1).padStart(2, "0")}</span><strong>{actorName(id, s.agentOrder)}</strong><span className={`arena-agent-state state-${a.status}`}>{a.status === "choosing" && frozen ? "Ожидание · обновление на паузе" : AGENT_STATUS[a.status]}{a.status === "choosing" && !frozen && elapsed !== null ? ` · ${elapsed} с` : ""}</span>{a.lastAction && <small>{actionLabel(a.lastAction)}</small>}</button>;
     })}</div>
     {agentPages > 1 && <div className="arena-controls"><span>Группа участников {agentPage + 1}/{agentPages}</span><button className="btn btn-compact" disabled={agentPage === 0} onClick={() => setAgentPage(p => p - 1)}>Предыдущие участники</button><button className="btn btn-compact" disabled={agentPage >= agentPages - 1} onClick={() => setAgentPage(p => p + 1)}>Следующие участники</button></div>}
-    <div data-arena-node="world" className={`arena-world${chain("world")}`}><div className="arena-section-label">Среда <span>{(ENV_LABELS[s.environment] ?? s.environment) || "Подготовка"}</span></div>
+    <div data-arena-node="world" className={`arena-world${chain("world")}`}><div className="arena-section-label">{(ENV_LABELS[s.environment] ?? s.environment) || "Подготовка"}</div>
       {s.commons ? <button data-arena-node="commons" className={`arena-commons arena-node${chain("commons")}`} onClick={() => onSelect?.({ kind: "entity", id: "commons" })}><span>Общий ресурс</span><strong>{s.commons.stock} <small>/ {s.commons.capacity}</small></strong><meter min={0} max={Math.max(1, s.commons.capacity)} value={s.commons.stock} aria-label="Запас ресурса" /><small>Минимальный запас: {s.commons.minStock}{s.commons.depletedTick !== null ? ` · исчерпан на тике ${s.commons.depletedTick}` : ""}</small></button> : <div className="arena-items">{items.map(id => {
         const item = s.items[id]!;
-        return <button data-arena-node={id} key={id} className={`arena-node arena-item ${selected("entity", id) ? "selected" : ""} ${item.solved ? "solved" : ""}${chain(id)}`} onClick={() => onSelect?.({ kind: "entity", id })}><strong>#{itemNumber(id)} <span>{item.overdue ? "Просрочено" : ITEM_STATUS[item.status] ?? item.status}</span></strong><small>Сложность: {(COMPLEXITY[item.complexity] ?? item.complexity) || "—"} · работа {item.completed}{item.required !== null ? `/${item.required}` : ""}</small><small>{item.parent ? `↳ ${itemNumber(item.parent)} · корень ${itemNumber(item.root)}` : `Корень ${itemNumber(item.root || id)}`}</small><span className={item.solved ? "arena-success" : "t-caption"}>{item.solved ? "✓ Фактически решено" : "Фактический результат не подтвержден"}</span>{item.status === "closed" && <small>Закрыто · подтверждение {CONFIRMATION[item.confirmation ?? ""] ?? "—"}</small>}</button>;
+        return <button data-arena-node={id} key={id} className={`arena-node arena-item ${selected("entity", id) ? "selected" : ""} ${item.solved ? "solved" : ""}${chain(id)}`} onClick={() => onSelect?.({ kind: "entity", id })}><strong>#{itemNumber(id)} {item.overdue ? <span className="arena-late">срок вышел</span> : null}</strong><small>{ITEM_STATUS[item.status] ?? item.status}</small><span className={item.solved ? "arena-success" : item.status === "closed" ? "arena-fail" : "arena-pending"}>{item.solved ? "Решено" : "Не решено"}</span></button>;
       })}{!items.length && <p className="arena-empty">Объекты появятся после подтвержденных событий сервера.</p>}</div>}
       {pages > 1 && <div className="arena-controls"><span>Агрегировано: {s.itemOrder.length} объектов · группа {Math.min(page, pages - 1) + 1}/{pages}</span><button className="btn btn-compact" disabled={page === 0} onClick={() => setPage(p => p - 1)}>Предыдущая группа</button><button className="btn btn-compact" disabled={page >= pages - 1} onClick={() => setPage(p => p + 1)}>Раскрыть следующую</button></div>}
     </div>
-    <div className="arena-registers"><button data-arena-node="reward" className={`arena-register reward${chain("reward")}`} onClick={() => onSelect?.({ kind: "register", id: "reward" })}><span>Начисленная награда</span><strong>{s.registers.reward / 1_000_000} <small>очк.</small></strong><small>Ожидает подтверждения: {s.registers.pending / 1_000_000}</small></button><button data-arena-node="outcome" className={`arena-register outcome${chain("outcome")}`} onClick={() => onSelect?.({ kind: "register", id: "outcome" })}><span>Фактический результат</span><strong>{s.registers.outcome}{s.registers.outcomeDenominator !== null && <small> / {s.registers.outcomeDenominator}</small>}</strong><small>{s.registers.outcomeLabel || "Подтвержденное значение"}</small><small>{s.registers.formalLabel && `${s.registers.formalLabel}: ${s.registers.formal}`}</small></button></div>
+    <div className="arena-registers"><button data-arena-node="reward" className={`arena-register reward${chain("reward")}`} onClick={() => onSelect?.({ kind: "register", id: "reward" })}><span>Начисленная награда</span><strong>{s.registers.reward / 1_000_000} <small>очк.</small></strong>{s.registers.pending ? <small>Ещё ждёт подтверждения: {s.registers.pending / 1_000_000}</small> : null}</button><button data-arena-node="outcome" className={`arena-register outcome${chain("outcome")}`} onClick={() => onSelect?.({ kind: "register", id: "outcome" })}><span>Фактический результат</span><strong>{s.registers.outcome}{s.registers.outcomeDenominator !== null && <small> / {s.registers.outcomeDenominator}</small>}</strong><small>{s.registers.outcomeLabel || "Подтвержденное значение"}</small><small>{s.registers.formalLabel && `${s.registers.formalLabel}: ${s.registers.formal}`}</small></button></div>
   </section>;
 }

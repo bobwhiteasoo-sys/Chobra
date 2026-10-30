@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { Providers } from "@/components/Providers";
 
 import "@/styles/globals.css";
+import "@/styles/system.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.CHOBRA_PUBLIC_URL ?? "http://localhost:3100"),
