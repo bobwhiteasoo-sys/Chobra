@@ -1,0 +1,6 @@
+{$CHOBRA_DOMAIN} {
+    encode zstd gzip
+    reverse_proxy web:3100 {
+        flush_interval -1
+    }
+}

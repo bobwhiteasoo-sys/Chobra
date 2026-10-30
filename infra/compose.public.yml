@@ -1,0 +1,5 @@
+# Public site with Telegram sign-in: no preview password in front of the app.
+services:
+  caddy:
+    volumes:
+      - ./Caddyfile.public:/etc/caddy/Caddyfile:ro
