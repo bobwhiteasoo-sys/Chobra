@@ -42,4 +42,8 @@ test("real API: sign in, create series, inspect finding, compare and export", as
   const download = page.waitForEvent("download");
   await page.getByRole("button", { name: "Скачать отчет", exact: true }).click();
   expect((await download).suggestedFilename()).toMatch(/\.md$/);
+  await page.goto("/w/00000000-0000-4000-8000-000000000000/projects");
+  await expect(page.getByRole("heading", { name: "Что проверим?", exact: true })).toBeVisible();
+  await expect(page).not.toHaveURL(/00000000-0000/);
+  await expect(page.getByText("не найден")).toHaveCount(0);
 });

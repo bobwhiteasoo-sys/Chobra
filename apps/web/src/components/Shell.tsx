@@ -57,6 +57,8 @@ export function Shell({ children }: { children: ReactNode }) {
     const candidates = [params.workspace, workspaceId, readStored(), me.data.last_workspace_id, me.data.workspaces[0]?.id];
     const chosen = candidates.find((id): id is string => Boolean(id && known.has(id))) ?? null;
     if (chosen !== workspaceId) setWorkspace(chosen);
+    // An address saved from another server or a removed workspace must not strand the visitor.
+    if (params.workspace && !known.has(params.workspace) && chosen) router.replace(`/w/${chosen}/projects`);
   }, [me.data, params.workspace, workspaceId, router]);
 
   const context = useMemo<WorkspaceCtx>(
@@ -75,7 +77,7 @@ export function Shell({ children }: { children: ReactNode }) {
     [workspaceId],
   );
 
-  if (!me.data || !workspaceId) {
+  if (!me.data || !workspaceId || (params.workspace && !me.data.workspaces.some((w) => w.id === params.workspace))) {
     return (
       <main className="main" style={{ maxWidth: 720 }}>
         {me.error && !(me.error instanceof ApiError && me.error.status === 401) ? <p className="t-secondary">Не удалось связаться с сервером Chobra.</p> : <Loading />}
